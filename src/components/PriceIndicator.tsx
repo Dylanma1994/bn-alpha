@@ -1,5 +1,5 @@
 import React from "react";
-import { Tag, Tooltip, Button } from "antd";
+import { Tooltip, Button } from "antd";
 import { ReloadOutlined, DollarOutlined } from "@ant-design/icons";
 import { useBNBPrice } from "../hooks/useBNBPrice";
 import { formatNumber } from "../utils/dataProcessor";

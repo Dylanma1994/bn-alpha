@@ -1,12 +1,10 @@
 import React, { useState } from "react";
-import { Table, Space, Typography, Tag, Button, Tooltip } from "antd";
+import { Table, Space, Typography, Tag, Button } from "antd";
 import {
-  SwapOutlined,
   DownOutlined,
   RightOutlined,
   WalletOutlined,
   DollarOutlined,
-  FireOutlined,
   FallOutlined,
 } from "@ant-design/icons";
 import type { DexTransactionSummary, AddressSummary } from "../types";
@@ -35,11 +33,7 @@ const AddressTransactionTable: React.FC<AddressTransactionTableProps> = ({
             <WalletOutlined style={{ marginRight: "4px", color: "#1890ff" }} />
             {record.address.slice(0, 6)}...{record.address.slice(-4)}
           </Text>
-          {record.label && (
-            <Tag size="small" color="blue">
-              {record.label}
-            </Tag>
-          )}
+          {record.label && <Tag color="blue">{record.label}</Tag>}
         </Space>
       ),
     },
@@ -74,10 +68,13 @@ const AddressTransactionTable: React.FC<AddressTransactionTableProps> = ({
       key: "totalLoss",
       width: 120,
       render: (record: AddressSummary) => {
-        const totalLoss = record.summary.slippageLoss + record.summary.totalGasFee * 600;
+        const totalLoss =
+          record.summary.slippageLoss + record.summary.totalGasFee * 600;
         return (
           <Space direction="vertical" size={0}>
-            <Text style={{ fontSize: "12px", color: "#ff4d4f", fontWeight: "bold" }}>
+            <Text
+              style={{ fontSize: "12px", color: "#ff4d4f", fontWeight: "bold" }}
+            >
               <FallOutlined style={{ marginRight: "2px" }} />
               {formatNumber(totalLoss, 2)} u
             </Text>
@@ -98,7 +95,9 @@ const AddressTransactionTable: React.FC<AddressTransactionTableProps> = ({
       key: "bnAlphaScore",
       width: 80,
       render: (record: AddressSummary) => (
-        <Text style={{ fontSize: "14px", fontWeight: "bold", color: "#722ed1" }}>
+        <Text
+          style={{ fontSize: "14px", fontWeight: "bold", color: "#722ed1" }}
+        >
           {record.summary.bnAlphaScore}
         </Text>
       ),
@@ -140,7 +139,7 @@ const AddressTransactionTable: React.FC<AddressTransactionTableProps> = ({
       key: "type",
       width: 60,
       render: (record: DexTransactionSummary) => (
-        <Tag color={record.type === "buy" ? "green" : "red"} size="small">
+        <Tag color={record.type === "buy" ? "green" : "red"}>
           {record.type === "buy" ? "买入" : "卖出"}
         </Tag>
       ),
@@ -191,9 +190,7 @@ const AddressTransactionTable: React.FC<AddressTransactionTableProps> = ({
       width: 80,
       render: (gasFee: number) => (
         <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: "11px" }}>
-            {formatNumber(gasFee, 6)}
-          </Text>
+          <Text style={{ fontSize: "11px" }}>{formatNumber(gasFee, 6)}</Text>
           <Text type="secondary" style={{ fontSize: "10px" }}>
             BNB
           </Text>
@@ -256,7 +253,7 @@ const AddressTransactionTable: React.FC<AddressTransactionTableProps> = ({
       rowKey="address"
       expandable={{
         expandedRowKeys,
-        onExpand: (expanded, record) => handleExpand(record.address),
+        onExpand: (_expanded, record) => handleExpand(record.address),
         expandedRowRender,
         showExpandColumn: false, // 隐藏默认的展开列，使用自定义按钮
       }}

@@ -1,20 +1,6 @@
 import React, { useState, useEffect } from "react";
-import {
-  Modal,
-  Input,
-  Button,
-  Form,
-  Alert,
-  Typography,
-  Space,
-  Tooltip,
-} from "antd";
-import {
-  SettingOutlined,
-  KeyOutlined,
-  InfoCircleOutlined,
-  ExclamationCircleOutlined,
-} from "@ant-design/icons";
+import { Modal, Input, Button, Form, Alert, Typography, Space } from "antd";
+import { KeyOutlined } from "@ant-design/icons";
 import {
   getApiKey,
   saveApiKey,
@@ -36,7 +22,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [currentKey, setCurrentKey] = useState("");
+  const [_currentKey, setCurrentKey] = useState("");
 
   useEffect(() => {
     if (visible) {

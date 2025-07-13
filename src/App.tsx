@@ -1,22 +1,13 @@
-import React, { useState } from "react";
-import { Layout, Typography, Space, message, Spin, Alert, Button } from "antd";
-import {
-  LinkOutlined,
-  LoadingOutlined,
-  SettingOutlined,
-} from "@ant-design/icons";
+import { useState } from "react";
+import { Layout, Typography, Space, message, Spin, Button } from "antd";
+import { LoadingOutlined, SettingOutlined } from "@ant-design/icons";
 import AddressInput from "./components/AddressInput";
 import SummaryCard from "./components/SummaryCard";
-
 import DexTransactionTable from "./components/DexTransactionTable";
 import BatchResultTable from "./components/BatchResultTable";
 import PriceIndicator from "./components/PriceIndicator";
 import ApiKeySettings from "./components/ApiKeySettings";
-import {
-  getAllTransactions,
-  SUPPORTED_CHAINS,
-  DEFAULT_CHAIN_ID,
-} from "./services/api";
+import { getAllTransactions, DEFAULT_CHAIN_ID } from "./services/api";
 import {
   calculateDailySummary,
   groupTransactionsByHash,

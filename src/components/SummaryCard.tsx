@@ -1,19 +1,15 @@
 import React from "react";
-import { Card, Row, Col, Statistic, Tag, Typography, Space } from "antd";
+import { Card, Row, Col, Statistic, Tag } from "antd";
 import {
   TransactionOutlined,
   DollarOutlined,
-  FireOutlined,
   TrophyOutlined,
-  WalletOutlined,
   LinkOutlined,
   FallOutlined,
 } from "@ant-design/icons";
 import type { DailySummary } from "../types";
 import { formatNumber } from "../utils/dataProcessor";
 import { useBNBPrice } from "../hooks/useBNBPrice";
-
-const { Text } = Typography;
 
 interface SummaryCardProps {
   summary: DailySummary;

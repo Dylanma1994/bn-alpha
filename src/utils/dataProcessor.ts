@@ -2,7 +2,6 @@ import type {
   Transaction,
   TokenSummary,
   DailySummary,
-  DexTransaction,
   DexTransactionSummary,
   AddressSummary,
 } from "../types";
@@ -299,29 +298,23 @@ export const groupTransactionsByHash = (
         console.log(`✅ 保留交易: ${outTokenSymbol} → ${inTokenSymbol}`);
 
         let transactionType: "buy" | "sell";
-        let displayPair: string;
 
         // 重新设计交易类型判断逻辑
         if (isStableCoinOut && !isStableCoinIn && !isBNBIn) {
           // 用稳定币买入其他代币（非BNB）
           transactionType = "buy";
-          displayPair = `${incomingTx.tokenSymbol}/${outgoingTx.tokenSymbol}`;
         } else if (!isStableCoinOut && !isBNBOut && isStableCoinIn) {
           // 卖出代币（非BNB）换稳定币
           transactionType = "sell";
-          displayPair = `${outgoingTx.tokenSymbol}/${incomingTx.tokenSymbol}`;
         } else if (isBNBOut && !isStableCoinIn && !isBNBIn) {
           // 用BNB买入其他代币（非稳定币）
           transactionType = "buy";
-          displayPair = `${incomingTx.tokenSymbol}/BNB`;
         } else if (!isStableCoinOut && !isBNBOut && isBNBIn) {
           // 卖出代币换BNB
           transactionType = "sell";
-          displayPair = `${outgoingTx.tokenSymbol}/BNB`;
         } else {
           // 其他情况，默认为卖出操作
           transactionType = "sell";
-          displayPair = `${outgoingTx.tokenSymbol}/${incomingTx.tokenSymbol}`;
         }
 
         // 标准化代币符号
