@@ -302,7 +302,14 @@ function App() {
             <Paragraph
               style={{ fontSize: "14px", color: "#999", marginTop: "16px" }}
             >
-              数据源: Etherscan v2 API
+              数据源: Etherscan v2 API |{" "}
+              <a
+                href="https://github.com/Dylanma1994/bn-alpha"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                开源地址
+              </a>
             </Paragraph>
           </div>
 
