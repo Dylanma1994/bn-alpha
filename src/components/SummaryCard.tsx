@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Row, Col, Statistic, Tag, Typography } from "antd";
+import { Card, Row, Col, Statistic, Tag, Typography, Space } from "antd";
 import {
   TransactionOutlined,
   DollarOutlined,
@@ -11,6 +11,7 @@ import {
 } from "@ant-design/icons";
 import type { DailySummary } from "../types";
 import { formatNumber } from "../utils/dataProcessor";
+import { useBNBPrice } from "../hooks/useBNBPrice";
 
 const { Text } = Typography;
 
@@ -23,6 +24,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
   summary,
   searchedAddress,
 }) => {
+  const { convertGasFeeToUSDT } = useBNBPrice();
   return (
     <Card
       title={
@@ -50,7 +52,11 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
         <Col xs={24} sm={12} md={6} lg={6} xl={6}>
           <Card
             size="small"
-            style={{ textAlign: "center", background: "#f0f9ff" }}
+            style={{
+              textAlign: "center",
+              background: "#f0f9ff",
+              height: "100%",
+            }}
           >
             <Statistic
               title="总交易数"
@@ -63,28 +69,29 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
         <Col xs={24} sm={12} md={6} lg={6} xl={6}>
           <Card
             size="small"
-            style={{ textAlign: "center", background: "#f6ffed" }}
+            style={{
+              textAlign: "center",
+              background: "#fff2f0",
+              height: "100%",
+            }}
           >
             <Statistic
-              title="总 Gas 费用"
-              value={formatNumber(summary.totalGasFee * 600, 2)}
-              suffix="u"
-              prefix={<FireOutlined style={{ color: "#52c41a" }} />}
-              valueStyle={{ color: "#52c41a" }}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} md={6} lg={6} xl={6}>
-          <Card
-            size="small"
-            style={{ textAlign: "center", background: "#fff2f0" }}
-          >
-            <Statistic
-              title="净损耗"
-              value={formatNumber(summary.slippageLoss, 2)}
-              suffix="u"
-              prefix={<FallOutlined style={{ color: "#ff4d4f" }} />}
+              title={
+                <span style={{ color: "#ff4d4f" }}>
+                  <FallOutlined style={{ marginRight: "4px" }} />
+                  总损耗
+                </span>
+              }
+              value={formatNumber(
+                summary.slippageLoss + convertGasFeeToUSDT(summary.totalGasFee),
+                2
+              )}
+              suffix={
+                <span style={{ fontSize: "12px" }}>
+                  u ({formatNumber(summary.slippageLoss, 2)} +{" "}
+                  {formatNumber(convertGasFeeToUSDT(summary.totalGasFee), 2)})
+                </span>
+              }
               valueStyle={{ color: "#ff4d4f" }}
             />
           </Card>
@@ -92,7 +99,29 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
         <Col xs={24} sm={12} md={6} lg={6} xl={6}>
           <Card
             size="small"
-            style={{ textAlign: "center", background: "#f9f0ff" }}
+            style={{
+              textAlign: "center",
+              background: "#f6ffed",
+              height: "100%",
+            }}
+          >
+            <Statistic
+              title="总交易量"
+              value={formatNumber(summary.totalBuyVolume, 2)}
+              suffix="u"
+              prefix={<DollarOutlined style={{ color: "#52c41a" }} />}
+              valueStyle={{ color: "#52c41a" }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6} lg={6} xl={6}>
+          <Card
+            size="small"
+            style={{
+              textAlign: "center",
+              background: "#f9f0ff",
+              height: "100%",
+            }}
           >
             <Statistic
               title="BN Alpha 分数"

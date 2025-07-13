@@ -1,10 +1,17 @@
 import React, { useState } from "react";
-import { Layout, Typography, Space, message, Spin, Alert } from "antd";
-import { LinkOutlined, LoadingOutlined } from "@ant-design/icons";
+import { Layout, Typography, Space, message, Spin, Alert, Button } from "antd";
+import {
+  LinkOutlined,
+  LoadingOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
 import AddressInput from "./components/AddressInput";
 import SummaryCard from "./components/SummaryCard";
 
 import DexTransactionTable from "./components/DexTransactionTable";
+import BatchResultTable from "./components/BatchResultTable";
+import PriceIndicator from "./components/PriceIndicator";
+import ApiKeySettings from "./components/ApiKeySettings";
 import {
   getAllTransactions,
   SUPPORTED_CHAINS,
@@ -14,8 +21,15 @@ import {
   calculateDailySummary,
   groupTransactionsByHash,
   calculateAndUpdateSlippage,
+  processBatchAddresses,
+  calculateBatchSummary,
 } from "./utils/dataProcessor";
-import type { DailySummary, DexTransactionSummary } from "./types";
+import type {
+  DailySummary,
+  DexTransactionSummary,
+  AddressSummary,
+} from "./types";
+import { saveQueryState } from "./utils/queryStateManager";
 
 const { Content } = Layout;
 const { Title, Paragraph } = Typography;
@@ -29,9 +43,25 @@ function App() {
   const [searchedAddress, setSearchedAddress] = useState<string>("");
   const [loadingProgress, setLoadingProgress] = useState<string>("");
 
+  // 批量查询相关状态
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [batchResults, setBatchResults] = useState<AddressSummary[]>([]);
+  const [searchedAddresses, setSearchedAddresses] = useState<string[]>([]);
+
+  // API Key设置状态
+  const [showApiKeySettings, setShowApiKeySettings] = useState(false);
+
   const handleSearch = async (address: string) => {
     setLoading(true);
     setSearchedAddress(address);
+
+    // 重置批量模式状态
+    setIsBatchMode(false);
+    setBatchResults([]);
+    setSearchedAddresses([]);
+
+    // 保存查询状态
+    saveQueryState("single", [address]);
 
     const chainName = "BNB Smart Chain";
     setLoadingProgress(`正在连接 ${chainName}...`);
@@ -95,6 +125,7 @@ function App() {
           walletBalance: 0,
           todayBuyAmount: 0,
           slippageLoss: 0,
+          totalBuyVolume: 0,
         });
         message.info(`该地址在 ${chainName} 今日暂无交易记录`);
       }
@@ -107,10 +138,87 @@ function App() {
     }
   };
 
+  // 批量查询处理函数
+  const handleBatchSearch = async (addresses: string[]) => {
+    setLoading(true);
+    setIsBatchMode(true);
+    setSearchedAddresses(addresses);
+    setBatchResults([]);
+    setDexTransactions([]);
+    setDailySummary(null);
+    setSearchedAddress("");
+
+    // 保存查询状态
+    saveQueryState("batch", addresses);
+
+    const chainName = "BNB Smart Chain";
+    setLoadingProgress(`正在批量查询 ${addresses.length} 个地址...`);
+
+    try {
+      // 使用批量处理函数
+      const results = await processBatchAddresses(
+        addresses,
+        getAllTransactions,
+        DEFAULT_CHAIN_ID
+      );
+
+      // 计算总汇总
+      const totalSummary = calculateBatchSummary(results);
+
+      setBatchResults(results);
+      setDailySummary(totalSummary);
+
+      const totalTransactions = results.reduce(
+        (sum, result) => sum + result.dexTransactions.length,
+        0
+      );
+      message.success(
+        `成功查询 ${addresses.length} 个地址，共 ${totalTransactions} 笔 DEX 交易记录，总 BN Alpha 分数: ${totalSummary.bnAlphaScore}`
+      );
+    } catch (err) {
+      message.error("批量查询失败，请稍后重试");
+      console.error("Error in batch search:", err);
+    } finally {
+      setLoading(false);
+      setLoadingProgress("");
+    }
+  };
+
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Content style={{ padding: "24px", background: "#f5f5f5" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <div
+          style={{ maxWidth: "1200px", margin: "0 auto", position: "relative" }}
+        >
+          {/* 右上角工具栏 */}
+          <div
+            style={{
+              position: "absolute",
+              top: "0",
+              right: "0",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              zIndex: 10,
+            }}
+          >
+            <PriceIndicator />
+            <Button
+              type="text"
+              size="small"
+              icon={<SettingOutlined />}
+              onClick={() => setShowApiKeySettings(true)}
+              style={{
+                fontSize: "12px",
+                color: "#999",
+                padding: "0 8px",
+                height: "24px",
+              }}
+            >
+              API Key
+            </Button>
+          </div>
+
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
             <Title level={2} style={{ marginBottom: "8px" }}>
               🚀 币安 Alpha 查询
@@ -118,13 +226,19 @@ function App() {
             <Paragraph style={{ fontSize: "16px", color: "#666" }}>
               分析您的 BNB 链交易数据，计算 BN Alpha 分数
             </Paragraph>
-            <Paragraph style={{ fontSize: "14px", color: "#999" }}>
-              数据源: Etherscan v2 API | 支持实时交易分析
+            <Paragraph
+              style={{ fontSize: "14px", color: "#999", marginTop: "16px" }}
+            >
+              数据源: Etherscan v2 API
             </Paragraph>
           </div>
 
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
-            <AddressInput onSearch={handleSearch} loading={loading} />
+            <AddressInput
+              onSearch={handleSearch}
+              onBatchSearch={handleBatchSearch}
+              loading={loading}
+            />
 
             {loading && (
               <div style={{ textAlign: "center", padding: "40px" }}>
@@ -145,16 +259,30 @@ function App() {
               </div>
             )}
 
-            {!loading && dailySummary && searchedAddress && (
+            {!loading && dailySummary && (
               <>
                 <SummaryCard
                   summary={dailySummary}
-                  searchedAddress={searchedAddress}
+                  searchedAddress={
+                    isBatchMode
+                      ? `批量查询 (${searchedAddresses.length} 个地址)`
+                      : searchedAddress
+                  }
                 />
-                <DexTransactionTable dexTransactions={dexTransactions} />
+                {isBatchMode ? (
+                  <BatchResultTable batchResults={batchResults} />
+                ) : (
+                  <DexTransactionTable dexTransactions={dexTransactions} />
+                )}
               </>
             )}
           </Space>
+
+          {/* API Key 设置弹窗 */}
+          <ApiKeySettings
+            visible={showApiKeySettings}
+            onClose={() => setShowApiKeySettings(false)}
+          />
         </div>
       </Content>
     </Layout>

@@ -72,4 +72,13 @@ export interface DailySummary {
   walletBalance: number;
   todayBuyAmount: number;
   slippageLoss: number; // 滑点损耗
+  totalBuyVolume: number; // 总买入交易量（只算买入）
+}
+
+// 地址汇总数据
+export interface AddressSummary {
+  address: string;
+  label?: string;
+  summary: DailySummary;
+  dexTransactions: DexTransactionSummary[];
 }

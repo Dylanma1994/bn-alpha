@@ -5,10 +5,10 @@ import {
   FileTextOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-  ClockCircleOutlined,
 } from "@ant-design/icons";
 import type { DexTransactionSummary } from "../types";
 import { formatNumber, formatAddress } from "../utils/dataProcessor";
+import { useBNBPrice } from "../hooks/useBNBPrice";
 
 const { Text } = Typography;
 
@@ -19,6 +19,7 @@ interface DexTransactionTableProps {
 const DexTransactionTable: React.FC<DexTransactionTableProps> = ({
   dexTransactions,
 }) => {
+  const { convertGasFeeToUSDT } = useBNBPrice();
   const columns = [
     {
       title: "交易时间",
@@ -110,12 +111,9 @@ const DexTransactionTable: React.FC<DexTransactionTableProps> = ({
       key: "gasFee",
       width: 100,
       render: (gasFee: number) => (
-        <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: "12px" }}>{formatNumber(gasFee, 6)}</Text>
-          <Text type="secondary" style={{ fontSize: "11px" }}>
-            BNB
-          </Text>
-        </Space>
+        <Text style={{ fontSize: "12px", fontWeight: "bold" }}>
+          {formatNumber(convertGasFeeToUSDT(gasFee), 2)} u
+        </Text>
       ),
     },
     {

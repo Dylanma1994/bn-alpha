@@ -1,10 +1,9 @@
 import axios from "axios";
 import type { Transaction } from "../types";
+import { getApiKey } from "../utils/apiKeyManager";
 
 // Etherscan v2 API 配置
 const ETHERSCAN_V2_API_BASE = "https://api.etherscan.io/v2/api";
-const ETHERSCAN_API_KEY =
-  import.meta.env.VITE_ETHERSCAN_API_KEY || "YourApiKeyToken";
 
 // 支持的链配置
 export const SUPPORTED_CHAINS = {
@@ -27,11 +26,12 @@ const callEtherscanV2API = async (
   chainId: number = DEFAULT_CHAIN_ID
 ) => {
   try {
+    const apiKey = getApiKey();
     const response = await axios.get(ETHERSCAN_V2_API_BASE, {
       params: {
         chainid: chainId,
         ...params,
-        apikey: ETHERSCAN_API_KEY,
+        apikey: apiKey,
       },
       timeout: 30000, // 30 second timeout
     });
@@ -58,24 +58,57 @@ const callEtherscanV2API = async (
 // 获取今天的开始和结束时间戳 (UTC+8)
 const getTodayTimestamps = () => {
   const now = new Date();
-  // 转换为 UTC+8 时区
-  const utc8Offset = 8 * 60 * 60 * 1000; // 8小时的毫秒数
-  const utc8Now = new Date(now.getTime() + utc8Offset);
 
+  // 获取当前 UTC+8 时间
+  const utc8Now = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+
+  // 今天早上 8:00 (UTC+8) 对应的 UTC 时间是 00:00
   const startOfDay = new Date(
-    utc8Now.getFullYear(),
-    utc8Now.getMonth(),
-    utc8Now.getDate()
+    Date.UTC(
+      utc8Now.getUTCFullYear(),
+      utc8Now.getUTCMonth(),
+      utc8Now.getUTCDate(),
+      0, // UTC 时间 00:00 对应北京时间 08:00
+      0,
+      0,
+      0
+    )
   );
-  const endOfDay = new Date(
-    utc8Now.getFullYear(),
-    utc8Now.getMonth(),
-    utc8Now.getDate() + 1
+
+  // 当前时间作为结束时间
+  const endTime = now;
+
+  // 直接使用时间戳
+  const startTimestamp = Math.floor(startOfDay.getTime() / 1000);
+  const endTimestamp = Math.floor(endTime.getTime() / 1000);
+
+  // 调试日志
+  console.log("调试时间计算:");
+  console.log(
+    "当前时间:",
+    now.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })
+  );
+  console.log("UTC+8 时间:", utc8Now.toUTCString());
+  console.log(
+    "开始时间戳:",
+    startTimestamp,
+    "对应时间:",
+    new Date(startTimestamp * 1000).toLocaleString("zh-CN", {
+      timeZone: "Asia/Shanghai",
+    })
+  );
+  console.log(
+    "结束时间戳:",
+    endTimestamp,
+    "对应时间:",
+    new Date(endTimestamp * 1000).toLocaleString("zh-CN", {
+      timeZone: "Asia/Shanghai",
+    })
   );
 
   return {
-    startTimestamp: Math.floor((startOfDay.getTime() - utc8Offset) / 1000),
-    endTimestamp: Math.floor((endOfDay.getTime() - utc8Offset) / 1000),
+    startTimestamp,
+    endTimestamp,
   };
 };
 
@@ -176,8 +209,9 @@ export const getTodayTransactions = async (
     console.error("获取交易数据失败:", error);
 
     // 检查是否是 API Key 问题
-    if (ETHERSCAN_API_KEY === "YourApiKeyToken") {
-      throw new Error("请在 .env 文件中设置有效的 VITE_ETHERSCAN_API_KEY");
+    const currentApiKey = getApiKey();
+    if (!currentApiKey || currentApiKey === "YourApiKeyToken") {
+      throw new Error("请设置有效的 Etherscan API Key");
     }
 
     throw new Error(

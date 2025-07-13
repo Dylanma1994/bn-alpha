@@ -4,7 +4,9 @@ import type {
   DailySummary,
   DexTransaction,
   DexTransactionSummary,
+  AddressSummary,
 } from "../types";
+import { getBNBPriceFromManager } from "./priceManager";
 
 // 将 Wei 转换为 Ether
 export const weiToEther = (wei: string): number => {
@@ -21,6 +23,14 @@ export const formatTokenAmount = (amount: string, decimals: string): number => {
 export const calculateGasFee = (gasUsed: string, gasPrice: string): number => {
   const gasFeeWei = (parseFloat(gasUsed) * parseFloat(gasPrice)).toString();
   return weiToEther(gasFeeWei);
+};
+
+// 将BNB Gas费用转换为USDT（使用实时价格）
+export const convertGasFeeToUSDT = async (
+  gasFeeInBNB: number
+): Promise<number> => {
+  const bnbPrice = await getBNBPriceFromManager();
+  return gasFeeInBNB * bnbPrice;
 };
 
 // 处理交易数据，按币种分组
@@ -84,6 +94,7 @@ export const calculateDailySummary = (
   let totalGasFee = 0;
   let totalValue = 0;
   let todayBuyAmount = 0;
+  let totalBuyVolume = 0; // 总买入交易量
   const uniqueTokens = new Set<string>();
 
   dexTransactions.forEach((dexTx) => {
@@ -108,6 +119,7 @@ export const calculateDailySummary = (
     if (dexTx.type === "buy") {
       if (stableCoins.includes(dexTx.fromToken.toUpperCase())) {
         todayBuyAmount += dexTx.fromAmount;
+        totalBuyVolume += dexTx.fromAmount; // 累计总买入交易量
       }
     }
   });
@@ -127,6 +139,7 @@ export const calculateDailySummary = (
     walletBalance,
     todayBuyAmount,
     slippageLoss,
+    totalBuyVolume,
   };
 };
 
@@ -134,7 +147,7 @@ export const calculateDailySummary = (
 export const formatNumber = (num: number, decimals: number = 6): string => {
   if (num === 0) return "0";
   if (num < 0.000001) return "< 0.000001";
-  return num.toFixed(decimals).replace(/\.?0+$/, "");
+  return num.toFixed(decimals);
 };
 
 // 格式化地址显示
@@ -314,25 +327,25 @@ const calculateNetStablecoinLoss = (
       tx.type === "buy" &&
       baseCurrencies.includes(tx.fromToken.toUpperCase())
     ) {
-      // 买入：记录流出金额
+      // 买入：记录流出金额，显示为正数（表示损耗）
       transactionFlow = -tx.fromAmount; // 负数表示流出
-      slippageLoss = tx.fromAmount; // 单笔交易的潜在损耗
+      slippageLoss = tx.fromAmount; // 买入时的损耗（正数）
     } else if (
       tx.type === "sell" &&
       baseCurrencies.includes(tx.toToken.toUpperCase())
     ) {
-      // 卖出：记录流入金额
+      // 卖出：记录流入金额，显示为负数（表示收回）
       transactionFlow = tx.toAmount; // 正数表示流入
-      slippageLoss = -tx.toAmount; // 负数表示收回资金
+      slippageLoss = -tx.toAmount; // 卖出时收回的金额（负数）
     }
 
     return {
       ...tx,
-      slippageLoss,
+      slippageLoss, // 单笔交易的损耗/收回
       theoreticalValueUSD: Math.abs(transactionFlow),
       actualValueUSD: Math.abs(transactionFlow),
       priceImpact: 0,
-      netLoss, // 添加总净损耗信息
+      netLoss, // 总净损耗（所有交易的净损耗）
     };
   });
 };
@@ -379,4 +392,115 @@ export const calculateSlippageLoss = (
   });
 
   return totalOutflow - totalInflow;
+};
+
+// 批量处理多个地址的数据
+export const processBatchAddresses = async (
+  addresses: string[],
+  getAllTransactions: (
+    address: string,
+    chainId: number
+  ) => Promise<Transaction[]>,
+  chainId: number
+): Promise<AddressSummary[]> => {
+  const results: AddressSummary[] = [];
+
+  for (const address of addresses) {
+    try {
+      // 获取交易数据
+      const txs = await getAllTransactions(address, chainId);
+
+      if (txs.length > 0) {
+        // 处理DEX交易
+        let dexTxs = groupTransactionsByHash(txs, address);
+        dexTxs = calculateAndUpdateSlippage(dexTxs);
+
+        // 计算汇总数据
+        const summary = calculateDailySummary(txs, address, 0);
+
+        results.push({
+          address,
+          summary,
+          dexTransactions: dexTxs,
+        });
+      } else {
+        // 空数据的情况
+        results.push({
+          address,
+          summary: {
+            totalTransactions: 0,
+            totalGasFee: 0,
+            totalValue: 0,
+            uniqueTokens: 0,
+            bnAlphaScore: 0,
+            walletBalance: 0,
+            todayBuyAmount: 0,
+            slippageLoss: 0,
+            totalBuyVolume: 0,
+          },
+          dexTransactions: [],
+        });
+      }
+    } catch (error) {
+      console.error(`处理地址 ${address} 时出错:`, error);
+      // 出错时也添加空数据
+      results.push({
+        address,
+        summary: {
+          totalTransactions: 0,
+          totalGasFee: 0,
+          totalValue: 0,
+          uniqueTokens: 0,
+          bnAlphaScore: 0,
+          walletBalance: 0,
+          todayBuyAmount: 0,
+          slippageLoss: 0,
+          totalBuyVolume: 0,
+        },
+        dexTransactions: [],
+      });
+    }
+  }
+
+  return results;
+};
+
+// 计算批量地址的总汇总
+export const calculateBatchSummary = (
+  addressSummaries: AddressSummary[]
+): DailySummary => {
+  const totalSummary: DailySummary = {
+    totalTransactions: 0,
+    totalGasFee: 0,
+    totalValue: 0,
+    uniqueTokens: 0,
+    bnAlphaScore: 0,
+    walletBalance: 0,
+    todayBuyAmount: 0,
+    slippageLoss: 0,
+    totalBuyVolume: 0,
+  };
+
+  addressSummaries.forEach(({ summary }) => {
+    totalSummary.totalTransactions += summary.totalTransactions;
+    totalSummary.totalGasFee += summary.totalGasFee;
+    totalSummary.totalValue += summary.totalValue;
+    totalSummary.bnAlphaScore += summary.bnAlphaScore;
+    totalSummary.walletBalance += summary.walletBalance;
+    totalSummary.todayBuyAmount += summary.todayBuyAmount;
+    totalSummary.slippageLoss += summary.slippageLoss;
+    totalSummary.totalBuyVolume += summary.totalBuyVolume;
+  });
+
+  // 计算唯一代币数量（需要去重）
+  const allTokens = new Set<string>();
+  addressSummaries.forEach(({ dexTransactions }) => {
+    dexTransactions.forEach((tx) => {
+      allTokens.add(tx.fromToken);
+      allTokens.add(tx.toToken);
+    });
+  });
+  totalSummary.uniqueTokens = allTokens.size;
+
+  return totalSummary;
 };
