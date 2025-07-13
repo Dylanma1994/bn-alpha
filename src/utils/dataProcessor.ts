@@ -8,6 +8,20 @@ import type {
 } from "../types";
 import { getBNBPriceFromManager } from "./priceManager";
 
+// 稳定币列表
+const STABLE_COINS = [
+  "USDT",
+  "USDC",
+  "BUSD",
+  "DAI",
+  "TUSD",
+  "FDUSD",
+  "BSC-USD",
+];
+
+// 基准货币列表（稳定币 + BNB）
+const BASE_CURRENCIES = [...STABLE_COINS, "BNB"];
+
 // 将 Wei 转换为 Ether
 export const weiToEther = (wei: string): number => {
   return parseFloat(wei) / Math.pow(10, 18);
@@ -105,10 +119,9 @@ export const calculateDailySummary = (
     uniqueTokens.add(dexTx.toToken);
 
     // 计算交易价值（使用稳定币价值或代币数量）
-    const stableCoins = ["USDT", "USDC", "BUSD", "DAI", "BSC-USD"];
-    if (stableCoins.includes(dexTx.fromToken.toUpperCase())) {
+    if (STABLE_COINS.includes(dexTx.fromToken.toUpperCase())) {
       totalValue += dexTx.fromAmount;
-    } else if (stableCoins.includes(dexTx.toToken.toUpperCase())) {
+    } else if (STABLE_COINS.includes(dexTx.toToken.toUpperCase())) {
       totalValue += dexTx.toAmount;
     } else {
       // 如果都不是稳定币，使用 from 代币的数量
@@ -117,7 +130,7 @@ export const calculateDailySummary = (
 
     // 计算当日买入金额（只计算买入交易的稳定币金额）
     if (dexTx.type === "buy") {
-      if (stableCoins.includes(dexTx.fromToken.toUpperCase())) {
+      if (STABLE_COINS.includes(dexTx.fromToken.toUpperCase())) {
         todayBuyAmount += dexTx.fromAmount;
         totalBuyVolume += dexTx.fromAmount; // 累计总买入交易量
       }
@@ -203,14 +216,21 @@ export const groupTransactionsByHash = (
         // 计算 gas 费用（使用第一个交易的 gas 信息）
         const gasFee = calculateGasFee(txs[0].gasUsed, txs[0].gasPrice);
 
-        // 判断交易类型：如果卖出的是稳定币（USDT, USDC, BUSD等），则是买入操作
-        const stableCoins = ["USDT", "USDC", "BUSD", "DAI", "BSC-USD"];
-        const isStableCoinOut = stableCoins.includes(
+        // 判断交易类型：如果卖出的是稳定币，则是买入操作
+        const isStableCoinOut = STABLE_COINS.includes(
           outgoingTx.tokenSymbol?.toUpperCase() || ""
         );
-        const isStableCoinIn = stableCoins.includes(
+        const isStableCoinIn = STABLE_COINS.includes(
           incomingTx.tokenSymbol?.toUpperCase() || ""
         );
+
+        // 过滤稳定币之间的交易
+        if (isStableCoinOut && isStableCoinIn) {
+          console.log(
+            `跳过稳定币之间的交易: ${outgoingTx.tokenSymbol} → ${incomingTx.tokenSymbol}`
+          );
+          return; // 跳过稳定币之间的交易
+        }
 
         let transactionType: "buy" | "sell";
         let displayPair: string;
@@ -224,7 +244,7 @@ export const groupTransactionsByHash = (
           transactionType = "sell";
           displayPair = `${outgoingTx.tokenSymbol}/${incomingTx.tokenSymbol}`;
         } else {
-          // 其他情况，默认为卖出操作
+          // 其他情况（非稳定币之间的交易），默认为卖出操作
           transactionType = "sell";
           displayPair = `${outgoingTx.tokenSymbol}/${incomingTx.tokenSymbol}`;
         }
@@ -290,8 +310,7 @@ export const calculateBNAlphaScore = (todayBuyAmountUSD: number): number => {
 const calculateNetStablecoinLoss = (
   dexTransactions: DexTransactionSummary[]
 ): DexTransactionSummary[] => {
-  // 基准货币：USDT、USDC、BNB
-  const baseCurrencies = ["USDT", "USDC", "BNB", "BUSD", "DAI", "BSC-USD"];
+  // 基准货币：稳定币和BNB
 
   let totalOutflow = 0; // 总流出（买入时花费的稳定币）
   let totalInflow = 0; // 总流入（卖出时获得的稳定币）
@@ -300,12 +319,12 @@ const calculateNetStablecoinLoss = (
   dexTransactions.forEach((tx) => {
     if (
       tx.type === "buy" &&
-      baseCurrencies.includes(tx.fromToken.toUpperCase())
+      BASE_CURRENCIES.includes(tx.fromToken.toUpperCase())
     ) {
       totalOutflow += tx.fromAmount; // 买入时花费稳定币
     } else if (
       tx.type === "sell" &&
-      baseCurrencies.includes(tx.toToken.toUpperCase())
+      BASE_CURRENCIES.includes(tx.toToken.toUpperCase())
     ) {
       totalInflow += tx.toAmount; // 卖出时获得稳定币
     }
@@ -325,14 +344,14 @@ const calculateNetStablecoinLoss = (
 
     if (
       tx.type === "buy" &&
-      baseCurrencies.includes(tx.fromToken.toUpperCase())
+      BASE_CURRENCIES.includes(tx.fromToken.toUpperCase())
     ) {
       // 买入：记录流出金额，显示为正数（表示损耗）
       transactionFlow = -tx.fromAmount; // 负数表示流出
       slippageLoss = tx.fromAmount; // 买入时的损耗（正数）
     } else if (
       tx.type === "sell" &&
-      baseCurrencies.includes(tx.toToken.toUpperCase())
+      BASE_CURRENCIES.includes(tx.toToken.toUpperCase())
     ) {
       // 卖出：记录流入金额，显示为负数（表示收回）
       transactionFlow = tx.toAmount; // 正数表示流入
@@ -373,19 +392,18 @@ export const calculateSlippageLoss = (
   }
 
   // 兜底：手动计算净损耗
-  const baseCurrencies = ["USDT", "USDC", "BNB", "BUSD", "DAI", "BSC-USD"];
   let totalOutflow = 0;
   let totalInflow = 0;
 
   dexTransactions.forEach((tx) => {
     if (
       tx.type === "buy" &&
-      baseCurrencies.includes(tx.fromToken.toUpperCase())
+      BASE_CURRENCIES.includes(tx.fromToken.toUpperCase())
     ) {
       totalOutflow += tx.fromAmount;
     } else if (
       tx.type === "sell" &&
-      baseCurrencies.includes(tx.toToken.toUpperCase())
+      BASE_CURRENCIES.includes(tx.toToken.toUpperCase())
     ) {
       totalInflow += tx.toAmount;
     }
