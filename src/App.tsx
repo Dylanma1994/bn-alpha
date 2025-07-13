@@ -151,15 +151,22 @@ function App() {
     // 保存查询状态
     saveQueryState("batch", addresses);
 
-    const chainName = "BNB Smart Chain";
     setLoadingProgress(`正在批量查询 ${addresses.length} 个地址...`);
 
     try {
-      // 使用批量处理函数
+      // 使用批量处理函数，带进度回调
       const results = await processBatchAddresses(
         addresses,
         getAllTransactions,
-        DEFAULT_CHAIN_ID
+        DEFAULT_CHAIN_ID,
+        (current, total, address) => {
+          setLoadingProgress(
+            `正在查询第 ${current}/${total} 个地址: ${address.slice(
+              0,
+              6
+            )}...${address.slice(-4)}`
+          );
+        }
       );
 
       // 计算总汇总
@@ -168,12 +175,16 @@ function App() {
       setBatchResults(results);
       setDailySummary(totalSummary);
 
+      const successCount = results.filter(
+        (r) => r.summary.totalTransactions > 0
+      ).length;
       const totalTransactions = results.reduce(
         (sum, result) => sum + result.dexTransactions.length,
         0
       );
+
       message.success(
-        `成功查询 ${addresses.length} 个地址，共 ${totalTransactions} 笔 DEX 交易记录，总 BN Alpha 分数: ${totalSummary.bnAlphaScore}`
+        `批量查询完成！${successCount}/${addresses.length} 个地址有交易数据，共 ${totalTransactions} 笔 DEX 交易记录，总 BN Alpha 分数: ${totalSummary.bnAlphaScore}`
       );
     } catch (err) {
       message.error("批量查询失败，请稍后重试");

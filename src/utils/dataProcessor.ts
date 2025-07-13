@@ -394,19 +394,45 @@ export const calculateSlippageLoss = (
   return totalOutflow - totalInflow;
 };
 
-// 批量处理多个地址的数据
-export const processBatchAddresses = async (
-  addresses: string[],
+// 延迟函数
+const delay = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+// 创建空的地址汇总数据
+const createEmptyAddressSummary = (address: string): AddressSummary => ({
+  address,
+  summary: {
+    totalTransactions: 0,
+    totalGasFee: 0,
+    totalValue: 0,
+    uniqueTokens: 0,
+    bnAlphaScore: 0,
+    walletBalance: 0,
+    todayBuyAmount: 0,
+    slippageLoss: 0,
+    totalBuyVolume: 0,
+  },
+  dexTransactions: [],
+});
+
+// 带重试的单地址查询
+const queryAddressWithRetry = async (
+  address: string,
   getAllTransactions: (
     address: string,
     chainId: number
   ) => Promise<Transaction[]>,
-  chainId: number
-): Promise<AddressSummary[]> => {
-  const results: AddressSummary[] = [];
+  chainId: number,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<AddressSummary> => {
+  let lastError: Error | null = null;
 
-  for (const address of addresses) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      console.log(`查询地址 ${address} (第 ${attempt}/${maxRetries} 次尝试)`);
+
       // 获取交易数据
       const txs = await getAllTransactions(address, chainId);
 
@@ -418,49 +444,78 @@ export const processBatchAddresses = async (
         // 计算汇总数据
         const summary = calculateDailySummary(txs, address, 0);
 
-        results.push({
+        console.log(`✅ 地址 ${address} 查询成功，找到 ${txs.length} 笔交易`);
+        return {
           address,
           summary,
           dexTransactions: dexTxs,
-        });
+        };
       } else {
-        // 空数据的情况
-        results.push({
-          address,
-          summary: {
-            totalTransactions: 0,
-            totalGasFee: 0,
-            totalValue: 0,
-            uniqueTokens: 0,
-            bnAlphaScore: 0,
-            walletBalance: 0,
-            todayBuyAmount: 0,
-            slippageLoss: 0,
-            totalBuyVolume: 0,
-          },
-          dexTransactions: [],
-        });
+        console.log(`ℹ️ 地址 ${address} 无交易记录`);
+        return createEmptyAddressSummary(address);
       }
     } catch (error) {
-      console.error(`处理地址 ${address} 时出错:`, error);
-      // 出错时也添加空数据
-      results.push({
-        address,
-        summary: {
-          totalTransactions: 0,
-          totalGasFee: 0,
-          totalValue: 0,
-          uniqueTokens: 0,
-          bnAlphaScore: 0,
-          walletBalance: 0,
-          todayBuyAmount: 0,
-          slippageLoss: 0,
-          totalBuyVolume: 0,
-        },
-        dexTransactions: [],
-      });
+      lastError = error as Error;
+      console.warn(`❌ 地址 ${address} 第 ${attempt} 次查询失败:`, error);
+
+      if (attempt < maxRetries) {
+        // 指数退避延迟
+        const delayTime = baseDelay * Math.pow(2, attempt - 1);
+        console.log(`⏳ 等待 ${delayTime}ms 后重试...`);
+        await delay(delayTime);
+      }
     }
   }
+
+  // 所有重试都失败了
+  console.error(
+    `🚫 地址 ${address} 查询失败，已重试 ${maxRetries} 次，最后错误:`,
+    lastError
+  );
+  return createEmptyAddressSummary(address);
+};
+
+// 批量处理多个地址的数据（顺序查询，带重试机制）
+export const processBatchAddresses = async (
+  addresses: string[],
+  getAllTransactions: (
+    address: string,
+    chainId: number
+  ) => Promise<Transaction[]>,
+  chainId: number,
+  onProgress?: (current: number, total: number, address: string) => void
+): Promise<AddressSummary[]> => {
+  const results: AddressSummary[] = [];
+  const total = addresses.length;
+
+  console.log(`🚀 开始批量查询 ${total} 个地址`);
+
+  for (let i = 0; i < addresses.length; i++) {
+    const address = addresses[i];
+
+    // 更新进度
+    if (onProgress) {
+      onProgress(i + 1, total, address);
+    }
+
+    // 查询单个地址（带重试）
+    const result = await queryAddressWithRetry(
+      address,
+      getAllTransactions,
+      chainId
+    );
+    results.push(result);
+
+    // 在查询之间添加延迟，避免API限流
+    if (i < addresses.length - 1) {
+      await delay(200); // 200ms延迟，确保不超过5qps
+    }
+  }
+
+  const successCount = results.filter(
+    (r) => r.summary.totalTransactions > 0
+  ).length;
+  console.log(`✅ 批量查询完成: ${successCount}/${total} 个地址有交易数据`);
 
   return results;
 };
