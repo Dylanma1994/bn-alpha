@@ -160,6 +160,30 @@ const getTokenTransactions = async (
   );
 };
 
+// 获取内部交易 (Internal Transactions)
+const getInternalTransactions = async (
+  address: string,
+  chainId: number = DEFAULT_CHAIN_ID
+): Promise<Transaction[]> => {
+  const chainName =
+    SUPPORTED_CHAINS[chainId as keyof typeof SUPPORTED_CHAINS]?.name ||
+    `Chain ${chainId}`;
+  console.log(`正在获取内部交易... (${chainName})`);
+  return await callEtherscanV2API(
+    {
+      module: "account",
+      action: "txlistinternal",
+      address: address,
+      startblock: 0,
+      endblock: 99999999,
+      page: 1,
+      offset: 1000,
+      sort: "desc",
+    },
+    chainId
+  );
+};
+
 // 获取今天的交易数据（使用 Etherscan v2 API）
 export const getTodayTransactions = async (
   address: string,
@@ -180,18 +204,20 @@ export const getTodayTransactions = async (
       })}`
     );
 
-    // 并行获取普通交易和代币交易
+    // 并行获取普通交易、代币交易和内部交易
     console.log("正在并行获取交易数据...");
-    const [normalTxs, tokenTxs] = await Promise.all([
+    const [normalTxs, tokenTxs, internalTxs] = await Promise.all([
       getNormalTransactions(address, chainId),
       getTokenTransactions(address, chainId),
+      getInternalTransactions(address, chainId),
     ]);
 
     console.log(`获取到 ${normalTxs.length} 笔普通交易`);
     console.log(`获取到 ${tokenTxs.length} 笔代币交易`);
+    console.log(`获取到 ${internalTxs.length} 笔内部交易`);
 
     // 合并所有交易
-    const allTransactions = [...normalTxs, ...tokenTxs];
+    const allTransactions = [...normalTxs, ...tokenTxs, ...internalTxs];
 
     // 过滤今天的交易
     const todayTransactions = allTransactions.filter((tx) => {

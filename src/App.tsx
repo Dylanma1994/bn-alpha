@@ -105,9 +105,9 @@ function App() {
         let dexTxs = groupTransactionsByHash(txs, address);
 
         // 计算并更新每笔交易的滑点损耗
-        dexTxs = calculateAndUpdateSlippage(dexTxs);
+        dexTxs = await calculateAndUpdateSlippage(dexTxs);
 
-        const summary = calculateDailySummary(txs, address, 0);
+        const summary = await calculateDailySummary(txs, address, 0);
 
         setDexTransactions(dexTxs);
         setDailySummary(summary);
@@ -201,6 +201,68 @@ function App() {
         <div
           style={{ maxWidth: "1200px", margin: "0 auto", position: "relative" }}
         >
+          {/* 左上角推特关注按钮 */}
+          <div
+            style={{
+              position: "absolute",
+              top: "0",
+              left: "0",
+              zIndex: 10,
+            }}
+          >
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => window.open("https://x.com/0x_xiguajun", "_blank")}
+              style={{
+                fontSize: "12px",
+                fontWeight: "500",
+                padding: "0 16px",
+                height: "32px",
+                backgroundColor: "#1DA1F2",
+                borderColor: "#1DA1F2",
+                borderRadius: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                boxShadow: "0 2px 8px rgba(29, 161, 242, 0.3)",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#1991DB";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(29, 161, 242, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#1DA1F2";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 2px 8px rgba(29, 161, 242, 0.3)";
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "16px",
+                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))",
+                }}
+              >
+                🐦
+              </span>
+              <span
+                style={{
+                  background: "linear-gradient(45deg, #ffffff, #f0f8ff)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  fontWeight: "600",
+                }}
+              >
+                关注推特
+              </span>
+            </Button>
+          </div>
+
           {/* 右上角工具栏 */}
           <div
             style={{

@@ -19,9 +19,6 @@ const STABLE_COINS = [
   "BSC-USD",
 ];
 
-// 基准货币列表（稳定币 + BNB）
-const BASE_CURRENCIES = [...STABLE_COINS, "BNB"];
-
 // 将 Wei 转换为 Ether
 export const weiToEther = (wei: string): number => {
   return parseFloat(wei) / Math.pow(10, 18);
@@ -95,15 +92,15 @@ export const processTransactionsByToken = (
 };
 
 // 计算每日汇总数据（基于 DEX 交易）
-export const calculateDailySummary = (
+export const calculateDailySummary = async (
   transactions: Transaction[],
   userAddress: string,
   walletBalance: number = 0
-): DailySummary => {
+): Promise<DailySummary> => {
   let dexTransactions = groupTransactionsByHash(transactions, userAddress);
 
   // 计算并更新滑点信息
-  dexTransactions = calculateAndUpdateSlippage(dexTransactions);
+  dexTransactions = await calculateAndUpdateSlippage(dexTransactions);
 
   let totalGasFee = 0;
   let totalValue = 0;
@@ -141,7 +138,7 @@ export const calculateDailySummary = (
   const bnAlphaScore = calculateBNAlphaScore(todayBuyAmount);
 
   // 计算滑点损耗
-  const slippageLoss = calculateSlippageLoss(dexTransactions);
+  const slippageLoss = await calculateSlippageLoss(dexTransactions);
 
   return {
     totalTransactions: dexTransactions.length,
@@ -187,11 +184,65 @@ export const groupTransactionsByHash = (
   const dexTransactions: DexTransactionSummary[] = [];
 
   txGroups.forEach((txs, hash) => {
-    // 只处理代币交易（有 tokenSymbol 的交易）
-    const tokenTxs = txs.filter((tx) => tx.tokenSymbol);
+    // 特殊调试：查找特定交易哈希
+    if (
+      hash ===
+      "0x47c19537d66207504672cfd7d13d13e718ec4c7c82ef9fa1f6aa1390fed88b05"
+    ) {
+      console.log(`🎯 找到目标交易哈希: ${hash}`);
+      console.log(`包含 ${txs.length} 个交易:`);
+      txs.forEach((tx, index) => {
+        console.log(
+          `  ${index + 1}. ${tx.tokenSymbol || "NO_SYMBOL"}: ${tx.from} → ${
+            tx.to
+          }, 金额: ${tx.value}, 代币: ${tx.tokenName || "N/A"}`
+        );
+      });
+    }
 
-    if (tokenTxs.length >= 2) {
-      // 可能是 DEX 交易，需要至少 2 个代币转账
+    // 处理代币交易和原生BNB交易
+    // 为原生BNB交易添加tokenSymbol
+    const processedTxs = txs.map((tx) => {
+      if (!tx.tokenSymbol) {
+        // 检查是否是原生BNB交易（包括内部交易）
+        const hasValue = parseFloat(tx.value) > 0;
+
+        // 如果有金额，这是一个BNB交易（普通交易或内部交易）
+        if (hasValue) {
+          console.log(
+            `🔍 检测到BNB交易 ${hash}: ${tx.from} → ${tx.to}, 金额: ${tx.value} BNB`
+          );
+          return {
+            ...tx,
+            tokenSymbol: "BNB",
+            tokenName: "Binance Coin",
+            tokenDecimal: "18",
+          };
+        }
+      }
+      return tx;
+    });
+
+    // 调试：显示每个交易哈希的详细信息
+    if (processedTxs.length >= 2) {
+      console.log(`📦 交易哈希 ${hash} 包含 ${processedTxs.length} 个交易:`);
+      processedTxs.forEach((tx, index) => {
+        console.log(
+          `  ${index + 1}. ${tx.tokenSymbol || "NO_SYMBOL"}: ${tx.from.slice(
+            0,
+            6
+          )}...${tx.from.slice(-4)} → ${tx.to.slice(0, 6)}...${tx.to.slice(
+            -4
+          )}, 金额: ${tx.value}`
+        );
+      });
+    }
+
+    // 过滤出有效的代币交易（现在包括BNB）
+    const tokenTxs = processedTxs.filter((tx) => tx.tokenSymbol);
+
+    if (tokenTxs.length >= 1) {
+      // 可能是 DEX 交易，需要至少 1 个代币转账
       const userIncoming = tokenTxs.filter(
         (tx) => tx.to.toLowerCase() === userAddress.toLowerCase()
       );
@@ -199,6 +250,7 @@ export const groupTransactionsByHash = (
         (tx) => tx.from.toLowerCase() === userAddress.toLowerCase()
       );
 
+      // 处理正常的双向交易
       if (userIncoming.length > 0 && userOutgoing.length > 0) {
         // 这是一个 DEX 交易：用户既发送了代币又接收了代币
         const outgoingTx = userOutgoing[0]; // 用户发送的代币
@@ -217,34 +269,57 @@ export const groupTransactionsByHash = (
         const gasFee = calculateGasFee(txs[0].gasUsed, txs[0].gasPrice);
 
         // 判断交易类型：如果卖出的是稳定币，则是买入操作
-        const isStableCoinOut = STABLE_COINS.includes(
-          outgoingTx.tokenSymbol?.toUpperCase() || ""
-        );
-        const isStableCoinIn = STABLE_COINS.includes(
-          incomingTx.tokenSymbol?.toUpperCase() || ""
-        );
+        const outTokenSymbol = outgoingTx.tokenSymbol?.toUpperCase() || "";
+        const inTokenSymbol = incomingTx.tokenSymbol?.toUpperCase() || "";
+
+        const isStableCoinOut = STABLE_COINS.includes(outTokenSymbol);
+        const isStableCoinIn = STABLE_COINS.includes(inTokenSymbol);
+        const isBNBOut = outTokenSymbol === "BNB";
+        const isBNBIn = inTokenSymbol === "BNB";
+
+        // 调试：显示交易对信息
+        console.log(`🔄 分析交易对: ${outTokenSymbol} → ${inTokenSymbol}`);
 
         // 过滤稳定币之间的交易
         if (isStableCoinOut && isStableCoinIn) {
           console.log(
-            `跳过稳定币之间的交易: ${outgoingTx.tokenSymbol} → ${incomingTx.tokenSymbol}`
+            `❌ 跳过稳定币之间的交易: ${outTokenSymbol} → ${inTokenSymbol}`
           );
           return; // 跳过稳定币之间的交易
         }
 
+        // 过滤BNB和稳定币之间的交易
+        if ((isBNBOut && isStableCoinIn) || (isStableCoinOut && isBNBIn)) {
+          console.log(
+            `❌ 跳过BNB和稳定币之间的交易: ${outTokenSymbol} → ${inTokenSymbol}`
+          );
+          return; // 跳过BNB和稳定币之间的交易
+        }
+
+        console.log(`✅ 保留交易: ${outTokenSymbol} → ${inTokenSymbol}`);
+
         let transactionType: "buy" | "sell";
         let displayPair: string;
 
-        if (isStableCoinOut && !isStableCoinIn) {
-          // 用稳定币买入其他代币
+        // 重新设计交易类型判断逻辑
+        if (isStableCoinOut && !isStableCoinIn && !isBNBIn) {
+          // 用稳定币买入其他代币（非BNB）
           transactionType = "buy";
           displayPair = `${incomingTx.tokenSymbol}/${outgoingTx.tokenSymbol}`;
-        } else if (!isStableCoinOut && isStableCoinIn) {
-          // 卖出代币换稳定币
+        } else if (!isStableCoinOut && !isBNBOut && isStableCoinIn) {
+          // 卖出代币（非BNB）换稳定币
           transactionType = "sell";
           displayPair = `${outgoingTx.tokenSymbol}/${incomingTx.tokenSymbol}`;
+        } else if (isBNBOut && !isStableCoinIn && !isBNBIn) {
+          // 用BNB买入其他代币（非稳定币）
+          transactionType = "buy";
+          displayPair = `${incomingTx.tokenSymbol}/BNB`;
+        } else if (!isStableCoinOut && !isBNBOut && isBNBIn) {
+          // 卖出代币换BNB
+          transactionType = "sell";
+          displayPair = `${outgoingTx.tokenSymbol}/BNB`;
         } else {
-          // 其他情况（非稳定币之间的交易），默认为卖出操作
+          // 其他情况，默认为卖出操作
           transactionType = "sell";
           displayPair = `${outgoingTx.tokenSymbol}/${incomingTx.tokenSymbol}`;
         }
@@ -307,26 +382,36 @@ export const calculateBNAlphaScore = (todayBuyAmountUSD: number): number => {
 };
 
 // 计算净损耗（稳定币流入流出差额）
-const calculateNetStablecoinLoss = (
+const calculateNetStablecoinLoss = async (
   dexTransactions: DexTransactionSummary[]
-): DexTransactionSummary[] => {
-  // 基准货币：稳定币和BNB
+): Promise<DexTransactionSummary[]> => {
+  // 获取实时BNB价格
+  const bnbPrice = await getBNBPriceFromManager();
 
   let totalOutflow = 0; // 总流出（买入时花费的稳定币）
   let totalInflow = 0; // 总流入（卖出时获得的稳定币）
 
   // 先计算总的流入流出
   dexTransactions.forEach((tx) => {
-    if (
-      tx.type === "buy" &&
-      BASE_CURRENCIES.includes(tx.fromToken.toUpperCase())
-    ) {
-      totalOutflow += tx.fromAmount; // 买入时花费稳定币
-    } else if (
-      tx.type === "sell" &&
-      BASE_CURRENCIES.includes(tx.toToken.toUpperCase())
-    ) {
-      totalInflow += tx.toAmount; // 卖出时获得稳定币
+    const fromTokenUpper = tx.fromToken.toUpperCase();
+    const toTokenUpper = tx.toToken.toUpperCase();
+
+    if (tx.type === "buy") {
+      // 买入交易：计算花费的基准货币
+      if (STABLE_COINS.includes(fromTokenUpper)) {
+        totalOutflow += tx.fromAmount; // 花费稳定币
+      } else if (fromTokenUpper === "BNB") {
+        // 用BNB买入其他代币，转换为USDT等值
+        totalOutflow += tx.fromAmount * bnbPrice;
+      }
+    } else if (tx.type === "sell") {
+      // 卖出交易：计算获得的基准货币
+      if (STABLE_COINS.includes(toTokenUpper)) {
+        totalInflow += tx.toAmount; // 获得稳定币
+      } else if (toTokenUpper === "BNB") {
+        // 卖出代币换BNB，转换为USDT等值
+        totalInflow += tx.toAmount * bnbPrice;
+      }
     }
   });
 
@@ -342,20 +427,31 @@ const calculateNetStablecoinLoss = (
     let slippageLoss = 0;
     let transactionFlow = 0;
 
-    if (
-      tx.type === "buy" &&
-      BASE_CURRENCIES.includes(tx.fromToken.toUpperCase())
-    ) {
-      // 买入：记录流出金额，显示为正数（表示损耗）
-      transactionFlow = -tx.fromAmount; // 负数表示流出
-      slippageLoss = tx.fromAmount; // 买入时的损耗（正数）
-    } else if (
-      tx.type === "sell" &&
-      BASE_CURRENCIES.includes(tx.toToken.toUpperCase())
-    ) {
-      // 卖出：记录流入金额，显示为负数（表示收回）
-      transactionFlow = tx.toAmount; // 正数表示流入
-      slippageLoss = -tx.toAmount; // 卖出时收回的金额（负数）
+    const fromTokenUpper = tx.fromToken.toUpperCase();
+    const toTokenUpper = tx.toToken.toUpperCase();
+
+    if (tx.type === "buy") {
+      // 买入交易：计算花费
+      if (STABLE_COINS.includes(fromTokenUpper)) {
+        transactionFlow = -tx.fromAmount; // 负数表示流出
+        slippageLoss = tx.fromAmount; // 买入时的损耗（正数）
+      } else if (fromTokenUpper === "BNB") {
+        // 用BNB买入，转换为USDT等值
+        const usdtValue = tx.fromAmount * bnbPrice;
+        transactionFlow = -usdtValue; // 负数表示流出
+        slippageLoss = usdtValue; // 买入时的损耗（正数）
+      }
+    } else if (tx.type === "sell") {
+      // 卖出交易：计算收入
+      if (STABLE_COINS.includes(toTokenUpper)) {
+        transactionFlow = tx.toAmount; // 正数表示流入
+        slippageLoss = -tx.toAmount; // 卖出时收回的金额（负数）
+      } else if (toTokenUpper === "BNB") {
+        // 卖出换BNB，转换为USDT等值
+        const usdtValue = tx.toAmount * bnbPrice;
+        transactionFlow = usdtValue; // 正数表示流入
+        slippageLoss = -usdtValue; // 卖出时收回的金额（负数）
+      }
     }
 
     return {
@@ -370,42 +466,48 @@ const calculateNetStablecoinLoss = (
 };
 
 // 计算并更新每笔交易的滑点损耗（净损耗版本）
-export const calculateAndUpdateSlippage = (
+export const calculateAndUpdateSlippage = async (
   dexTransactions: DexTransactionSummary[]
-): DexTransactionSummary[] => {
+): Promise<DexTransactionSummary[]> => {
   console.log(`正在计算 ${dexTransactions.length} 笔交易的净损耗...`);
 
   // 使用净损耗计算
-  const updatedTransactions = calculateNetStablecoinLoss(dexTransactions);
+  const updatedTransactions = await calculateNetStablecoinLoss(dexTransactions);
 
   console.log(`完成净损耗计算，共处理 ${updatedTransactions.length} 笔交易`);
   return updatedTransactions;
 };
 
 // 计算总净损耗
-export const calculateSlippageLoss = (
+export const calculateSlippageLoss = async (
   dexTransactions: DexTransactionSummary[]
-): number => {
+): Promise<number> => {
   // 如果有交易，返回第一笔交易的 netLoss（所有交易的 netLoss 都相同）
   if (dexTransactions.length > 0 && dexTransactions[0].netLoss !== undefined) {
     return dexTransactions[0].netLoss;
   }
 
   // 兜底：手动计算净损耗
+  const bnbPrice = await getBNBPriceFromManager();
   let totalOutflow = 0;
   let totalInflow = 0;
 
   dexTransactions.forEach((tx) => {
-    if (
-      tx.type === "buy" &&
-      BASE_CURRENCIES.includes(tx.fromToken.toUpperCase())
-    ) {
-      totalOutflow += tx.fromAmount;
-    } else if (
-      tx.type === "sell" &&
-      BASE_CURRENCIES.includes(tx.toToken.toUpperCase())
-    ) {
-      totalInflow += tx.toAmount;
+    const fromTokenUpper = tx.fromToken.toUpperCase();
+    const toTokenUpper = tx.toToken.toUpperCase();
+
+    if (tx.type === "buy") {
+      if (STABLE_COINS.includes(fromTokenUpper)) {
+        totalOutflow += tx.fromAmount;
+      } else if (fromTokenUpper === "BNB") {
+        totalOutflow += tx.fromAmount * bnbPrice; // 转换为USDT等值
+      }
+    } else if (tx.type === "sell") {
+      if (STABLE_COINS.includes(toTokenUpper)) {
+        totalInflow += tx.toAmount;
+      } else if (toTokenUpper === "BNB") {
+        totalInflow += tx.toAmount * bnbPrice; // 转换为USDT等值
+      }
     }
   });
 
@@ -457,10 +559,10 @@ const queryAddressWithRetry = async (
       if (txs.length > 0) {
         // 处理DEX交易
         let dexTxs = groupTransactionsByHash(txs, address);
-        dexTxs = calculateAndUpdateSlippage(dexTxs);
+        dexTxs = await calculateAndUpdateSlippage(dexTxs);
 
         // 计算汇总数据
-        const summary = calculateDailySummary(txs, address, 0);
+        const summary = await calculateDailySummary(txs, address, 0);
 
         console.log(`✅ 地址 ${address} 查询成功，找到 ${txs.length} 笔交易`);
         return {
