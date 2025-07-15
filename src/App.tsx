@@ -288,7 +288,7 @@ function App() {
               🚀 币安 Alpha 查询
             </Title>
             <Paragraph style={{ fontSize: "16px", color: "#666" }}>
-              分析您的 BNB 链交易数据，计算 BN Alpha 分数
+              分析您的币安 Alpha 交易数据，计算 Alpha 分数
             </Paragraph>
             <Paragraph
               style={{ fontSize: "14px", color: "#999", marginTop: "16px" }}
