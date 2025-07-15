@@ -73,9 +73,9 @@ export interface DailySummary {
   todayBuyAmount: number;
   slippageLoss: number; // 滑点损耗
   totalBuyVolume: number; // 总买入交易量（只算买入）
-  totalBuyVolumeWithMultiplier?: number; // 含Alpha倍数的总交易量
-  alphaVolume?: number; // Alpha代币交易量（原始）
-  normalVolume?: number; // 普通代币交易量
+  totalBuyVolumeWithMultiplier: number; // 含Alpha倍数的总交易量
+  alphaVolume: number; // Alpha代币交易量（原始）
+  normalVolume: number; // 普通代币交易量
 }
 
 // 地址汇总数据

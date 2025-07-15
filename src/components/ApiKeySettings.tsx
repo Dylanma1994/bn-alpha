@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from "react";
-import {
-  Modal,
-  Input,
-  Button,
-  Form,
-  Alert,
-  Typography,
-  Space,
-} from "antd";
+import { Modal, Input, Button, Form, Alert, Typography, Space } from "antd";
 import { KeyOutlined } from "@ant-design/icons";
 import {
-  getApiKey,
   saveApiKey,
   clearApiKey,
   isUsingDefaultKey,
@@ -24,10 +15,13 @@ interface ApiKeySettingsProps {
   onClose: () => void;
 }
 
-const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ visible, onClose }) => {
+const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
+  visible,
+  onClose,
+}) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [currentKey, setCurrentKey] = useState("");
+  const [_currentKey, setCurrentKey] = useState("");
 
   useEffect(() => {
     if (visible) {
@@ -88,7 +82,12 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ visible, onClose }) => 
         <Button key="cancel" onClick={onClose}>
           取消
         </Button>,
-        <Button key="save" type="primary" loading={loading} onClick={handleSave}>
+        <Button
+          key="save"
+          type="primary"
+          loading={loading}
+          onClick={handleSave}
+        >
           保存
         </Button>,
       ]}

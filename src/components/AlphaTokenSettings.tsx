@@ -1,37 +1,32 @@
 import { useState, useEffect } from "react";
-import { 
-  Modal, 
-  Input, 
-  Button, 
-  Form, 
-  Alert, 
-  Typography, 
-  Space, 
+import {
+  Modal,
+  Input,
+  Button,
+  Alert,
+  Typography,
+  Space,
   Tag,
-  Select,
-  Divider
+  Divider,
 } from "antd";
-import { 
-  FireOutlined,
-  PlusOutlined,
-  CloseOutlined
-} from "@ant-design/icons";
-import { 
-  getAlphaTokens, 
-  saveAlphaTokens, 
-  resetAlphaTokens 
+import { FireOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  getAlphaTokens,
+  saveAlphaTokens,
+  resetAlphaTokens,
 } from "../utils/alphaTokens";
 
 const { Text, Title } = Typography;
-const { Option } = Select;
 
 interface AlphaTokenSettingsProps {
   visible: boolean;
   onClose: () => void;
 }
 
-const AlphaTokenSettings: React.FC<AlphaTokenSettingsProps> = ({ visible, onClose }) => {
-  const [form] = Form.useForm();
+const AlphaTokenSettings: React.FC<AlphaTokenSettingsProps> = ({
+  visible,
+  onClose,
+}) => {
   const [loading, setLoading] = useState(false);
   const [alphaTokens, setAlphaTokens] = useState<string[]>([]);
   const [newToken, setNewToken] = useState<string>("");
@@ -74,7 +69,7 @@ const AlphaTokenSettings: React.FC<AlphaTokenSettingsProps> = ({ visible, onClos
 
   // 移除代币
   const handleRemoveToken = (token: string) => {
-    setAlphaTokens(alphaTokens.filter(t => t !== token));
+    setAlphaTokens(alphaTokens.filter((t) => t !== token));
   };
 
   return (
@@ -94,7 +89,12 @@ const AlphaTokenSettings: React.FC<AlphaTokenSettingsProps> = ({ visible, onClos
         <Button key="cancel" onClick={onClose}>
           取消
         </Button>,
-        <Button key="save" type="primary" loading={loading} onClick={handleSave}>
+        <Button
+          key="save"
+          type="primary"
+          loading={loading}
+          onClick={handleSave}
+        >
           保存
         </Button>,
       ]}
@@ -112,9 +112,9 @@ const AlphaTokenSettings: React.FC<AlphaTokenSettingsProps> = ({ visible, onClos
           <Title level={5}>当前Alpha代币列表</Title>
           <div style={{ marginBottom: "16px" }}>
             <Space size={[8, 8]} wrap>
-              {alphaTokens.map(token => (
-                <Tag 
-                  key={token} 
+              {alphaTokens.map((token) => (
+                <Tag
+                  key={token}
                   color="purple"
                   closable
                   onClose={() => handleRemoveToken(token)}
@@ -133,19 +133,21 @@ const AlphaTokenSettings: React.FC<AlphaTokenSettingsProps> = ({ visible, onClos
 
         <div>
           <Title level={5}>添加新Alpha代币</Title>
-          <Space.Compact style={{ width: '100%' }}>
+          <Space.Compact style={{ width: "100%" }}>
             <Input
               placeholder="输入代币符号，如 BTC"
               value={newToken}
-              onChange={e => setNewToken(e.target.value.trim().toUpperCase())}
+              onChange={(e) => setNewToken(e.target.value.trim().toUpperCase())}
               onPressEnter={handleAddToken}
-              style={{ textTransform: 'uppercase' }}
+              style={{ textTransform: "uppercase" }}
             />
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
               onClick={handleAddToken}
-              disabled={!newToken || alphaTokens.includes(newToken.toUpperCase())}
+              disabled={
+                !newToken || alphaTokens.includes(newToken.toUpperCase())
+              }
             >
               添加
             </Button>

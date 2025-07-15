@@ -125,6 +125,9 @@ function App() {
           todayBuyAmount: 0,
           slippageLoss: 0,
           totalBuyVolume: 0,
+          totalBuyVolumeWithMultiplier: 0,
+          alphaVolume: 0,
+          normalVolume: 0,
         });
         message.info(`该地址在 ${chainName} 今日暂无交易记录`);
       }
