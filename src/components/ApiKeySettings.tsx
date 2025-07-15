@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Input, Button, Form, Alert, Typography, Space } from "antd";
+import {
+  Modal,
+  Input,
+  Button,
+  Form,
+  Alert,
+  Typography,
+  Space,
+} from "antd";
 import { KeyOutlined } from "@ant-design/icons";
 import {
   getApiKey,
@@ -16,17 +24,13 @@ interface ApiKeySettingsProps {
   onClose: () => void;
 }
 
-const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
-  visible,
-  onClose,
-}) => {
+const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ visible, onClose }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [_currentKey, setCurrentKey] = useState("");
+  const [currentKey, setCurrentKey] = useState("");
 
   useEffect(() => {
     if (visible) {
-      // 只显示用户自定义的key，不显示默认key
       try {
         const savedKey = localStorage.getItem("bn_alpha_api_key") || "";
         setCurrentKey(savedKey);
@@ -50,7 +54,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
         setCurrentKey(apiKey);
       } else {
         clearApiKey();
-        setCurrentKey(getApiKey()); // 获取默认key
+        setCurrentKey("");
       }
 
       onClose();
@@ -84,12 +88,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
         <Button key="cancel" onClick={onClose}>
           取消
         </Button>,
-        <Button
-          key="save"
-          type="primary"
-          loading={loading}
-          onClick={handleSave}
-        >
+        <Button key="save" type="primary" loading={loading} onClick={handleSave}>
           保存
         </Button>,
       ]}
@@ -126,7 +125,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
               {
                 validator: (_, value) => {
                   if (!value || value.trim() === "") {
-                    return Promise.resolve(); // 允许空值（使用默认key）
+                    return Promise.resolve();
                   }
                   if (validateApiKey(value)) {
                     return Promise.resolve();

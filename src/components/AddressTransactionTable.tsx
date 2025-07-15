@@ -9,6 +9,7 @@ import {
 } from "@ant-design/icons";
 import type { DexTransactionSummary, AddressSummary } from "../types";
 import { formatNumber } from "../utils/dataProcessor";
+import { isAlphaToken } from "../utils/alphaTokens";
 
 const { Text } = Typography;
 
@@ -158,31 +159,67 @@ const AddressTransactionTable: React.FC<AddressTransactionTableProps> = ({
       title: "发送",
       key: "from",
       width: 100,
-      render: (record: DexTransactionSummary) => (
-        <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: "11px" }}>
-            {formatNumber(record.fromAmount, 4)}
-          </Text>
-          <Text type="secondary" style={{ fontSize: "10px" }}>
-            {record.fromToken}
-          </Text>
-        </Space>
-      ),
+      render: (record: DexTransactionSummary) => {
+        const isAlpha = isAlphaToken(record.fromToken);
+        return (
+          <Space direction="vertical" size={0}>
+            <Text style={{ fontSize: "11px" }}>
+              {formatNumber(record.fromAmount, 4)}
+            </Text>
+            <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+              <Text type="secondary" style={{ fontSize: "10px" }}>
+                {record.fromToken}
+              </Text>
+              {isAlpha && (
+                <Tag
+                  color="purple"
+                  style={{
+                    fontSize: "8px",
+                    padding: "0 2px",
+                    lineHeight: "12px",
+                    margin: 0,
+                  }}
+                >
+                  Alpha
+                </Tag>
+              )}
+            </div>
+          </Space>
+        );
+      },
     },
     {
       title: "接收",
       key: "to",
       width: 100,
-      render: (record: DexTransactionSummary) => (
-        <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: "11px" }}>
-            {formatNumber(record.toAmount, 4)}
-          </Text>
-          <Text type="secondary" style={{ fontSize: "10px" }}>
-            {record.toToken}
-          </Text>
-        </Space>
-      ),
+      render: (record: DexTransactionSummary) => {
+        const isAlpha = isAlphaToken(record.toToken);
+        return (
+          <Space direction="vertical" size={0}>
+            <Text style={{ fontSize: "11px" }}>
+              {formatNumber(record.toAmount, 4)}
+            </Text>
+            <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+              <Text type="secondary" style={{ fontSize: "10px" }}>
+                {record.toToken}
+              </Text>
+              {isAlpha && (
+                <Tag
+                  color="purple"
+                  style={{
+                    fontSize: "8px",
+                    padding: "0 2px",
+                    lineHeight: "12px",
+                    margin: 0,
+                  }}
+                >
+                  Alpha
+                </Tag>
+              )}
+            </div>
+          </Space>
+        );
+      },
     },
     {
       title: "Gas费用",

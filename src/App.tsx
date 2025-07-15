@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { Layout, Typography, Space, message, Spin, Button } from "antd";
-import { LoadingOutlined, SettingOutlined } from "@ant-design/icons";
+import {
+  LoadingOutlined,
+  SettingOutlined,
+  FireOutlined,
+} from "@ant-design/icons";
 import AddressInput from "./components/AddressInput";
 import SummaryCard from "./components/SummaryCard";
 import DexTransactionTable from "./components/DexTransactionTable";
 import BatchResultTable from "./components/BatchResultTable";
 import PriceIndicator from "./components/PriceIndicator";
 import ApiKeySettings from "./components/ApiKeySettings";
+import AlphaTokenSettings from "./components/AlphaTokenSettings";
 import { getAllTransactions, DEFAULT_CHAIN_ID } from "./services/api";
 import {
   calculateDailySummary,
@@ -41,6 +46,9 @@ function App() {
 
   // API Key设置状态
   const [showApiKeySettings, setShowApiKeySettings] = useState(false);
+
+  // Alpha代币设置状态
+  const [showAlphaTokenSettings, setShowAlphaTokenSettings] = useState(false);
 
   const handleSearch = async (address: string) => {
     setLoading(true);
@@ -270,6 +278,20 @@ function App() {
             <Button
               type="text"
               size="small"
+              icon={<FireOutlined />}
+              onClick={() => setShowAlphaTokenSettings(true)}
+              style={{
+                fontSize: "12px",
+                color: "#722ed1",
+                padding: "0 8px",
+                height: "24px",
+              }}
+            >
+              Alpha
+            </Button>
+            <Button
+              type="text"
+              size="small"
               icon={<SettingOutlined />}
               onClick={() => setShowApiKeySettings(true)}
               style={{
@@ -353,6 +375,12 @@ function App() {
           <ApiKeySettings
             visible={showApiKeySettings}
             onClose={() => setShowApiKeySettings(false)}
+          />
+
+          {/* Alpha代币设置弹窗 */}
+          <AlphaTokenSettings
+            visible={showAlphaTokenSettings}
+            onClose={() => setShowAlphaTokenSettings(false)}
           />
         </div>
       </Content>

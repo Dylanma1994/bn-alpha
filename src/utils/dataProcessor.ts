@@ -6,6 +6,7 @@ import type {
   AddressSummary,
 } from "../types";
 import { getBNBPriceFromManager } from "./priceManager";
+import { isAlphaToken, getAlphaMultiplier } from "./alphaTokens";
 
 // 稳定币列表
 const STABLE_COINS = [
@@ -104,7 +105,10 @@ export const calculateDailySummary = async (
   let totalGasFee = 0;
   let totalValue = 0;
   let todayBuyAmount = 0;
-  let totalBuyVolume = 0; // 总买入交易量
+  let totalBuyVolume = 0; // 总买入交易量（原始金额）
+  let totalBuyVolumeWithMultiplier = 0; // 总买入交易量（含Alpha倍数）
+  let alphaVolume = 0; // Alpha代币交易量（原始金额）
+  let normalVolume = 0; // 普通代币交易量
   const uniqueTokens = new Set<string>();
 
   dexTransactions.forEach((dexTx) => {
@@ -127,8 +131,30 @@ export const calculateDailySummary = async (
     // 计算当日买入金额（只计算买入交易的稳定币金额）
     if (dexTx.type === "buy") {
       if (STABLE_COINS.includes(dexTx.fromToken.toUpperCase())) {
-        todayBuyAmount += dexTx.fromAmount;
-        totalBuyVolume += dexTx.fromAmount; // 累计总买入交易量
+        // 总交易量使用原始金额（不考虑Alpha倍数）
+        totalBuyVolume += dexTx.fromAmount;
+
+        // BN Alpha分数计算时考虑Alpha代币倍数
+        const multiplier = getAlphaMultiplier(dexTx.toToken);
+        const adjustedAmount = dexTx.fromAmount * multiplier;
+        todayBuyAmount += adjustedAmount;
+
+        // 计算含Alpha倍数的总交易量
+        totalBuyVolumeWithMultiplier += adjustedAmount;
+
+        // 分别统计Alpha和普通代币交易量
+        if (isAlphaToken(dexTx.toToken)) {
+          alphaVolume += dexTx.fromAmount;
+        } else {
+          normalVolume += dexTx.fromAmount;
+        }
+
+        // 如果是Alpha代币，记录日志
+        if (multiplier > 1) {
+          console.log(
+            `Alpha代币交易: ${dexTx.toToken}, 原始金额: ${dexTx.fromAmount}, BN Alpha计算金额: ${adjustedAmount}`
+          );
+        }
       }
     }
   });
@@ -149,6 +175,9 @@ export const calculateDailySummary = async (
     todayBuyAmount,
     slippageLoss,
     totalBuyVolume,
+    totalBuyVolumeWithMultiplier,
+    alphaVolume,
+    normalVolume,
   };
 };
 
@@ -525,6 +554,9 @@ const createEmptyAddressSummary = (address: string): AddressSummary => ({
     todayBuyAmount: 0,
     slippageLoss: 0,
     totalBuyVolume: 0,
+    totalBuyVolumeWithMultiplier: 0,
+    alphaVolume: 0,
+    normalVolume: 0,
   },
   dexTransactions: [],
 });
@@ -647,6 +679,9 @@ export const calculateBatchSummary = (
     todayBuyAmount: 0,
     slippageLoss: 0,
     totalBuyVolume: 0,
+    totalBuyVolumeWithMultiplier: 0,
+    alphaVolume: 0,
+    normalVolume: 0,
   };
 
   addressSummaries.forEach(({ summary }) => {
@@ -658,6 +693,10 @@ export const calculateBatchSummary = (
     totalSummary.todayBuyAmount += summary.todayBuyAmount;
     totalSummary.slippageLoss += summary.slippageLoss;
     totalSummary.totalBuyVolume += summary.totalBuyVolume;
+    totalSummary.totalBuyVolumeWithMultiplier +=
+      summary.totalBuyVolumeWithMultiplier || 0;
+    totalSummary.alphaVolume += summary.alphaVolume || 0;
+    totalSummary.normalVolume += summary.normalVolume || 0;
   });
 
   // 计算唯一代币数量（需要去重）

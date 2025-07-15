@@ -1,15 +1,18 @@
-import React from "react";
-import { Card, Row, Col, Statistic, Tag } from "antd";
+import React, { useState } from "react";
+import { Card, Row, Col, Statistic, Tag, Modal, Space, Typography } from "antd";
 import {
   TransactionOutlined,
   DollarOutlined,
   TrophyOutlined,
   LinkOutlined,
   FallOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import type { DailySummary } from "../types";
 import { formatNumber } from "../utils/dataProcessor";
 import { useBNBPrice } from "../hooks/useBNBPrice";
+
+const { Text, Title } = Typography;
 
 interface SummaryCardProps {
   summary: DailySummary;
@@ -21,6 +24,12 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
   searchedAddress,
 }) => {
   const { convertGasFeeToUSDT } = useBNBPrice();
+  const [showVolumeDetail, setShowVolumeDetail] = useState(false);
+
+  // 计算倍数后的总交易量和明细
+  const alphaVolumeMultiplied = (summary.alphaVolume || 0) * 2;
+  const normalVolume = summary.normalVolume || 0;
+  const totalVolumeWithMultiplier = alphaVolumeMultiplied + normalVolume;
   return (
     <Card
       title={
@@ -102,7 +111,19 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
             }}
           >
             <Statistic
-              title="总交易量"
+              title={
+                <div
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setShowVolumeDetail(true)}
+                >
+                  <span style={{ borderBottom: "1px dashed #52c41a" }}>
+                    总交易量
+                  </span>
+                  <InfoCircleOutlined
+                    style={{ marginLeft: "4px", fontSize: "12px" }}
+                  />
+                </div>
+              }
               value={formatNumber(summary.totalBuyVolume, 2)}
               suffix="u"
               prefix={<DollarOutlined style={{ color: "#52c41a" }} />}
@@ -120,7 +141,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
             }}
           >
             <Statistic
-              title="BN Alpha 分数"
+              title="Alpha 分数(含倍数)"
               value={summary.bnAlphaScore}
               prefix={<TrophyOutlined style={{ color: "#722ed1" }} />}
               valueStyle={{
@@ -132,6 +153,94 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
           </Card>
         </Col>
       </Row>
+
+      {/* 交易量详情弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <DollarOutlined style={{ color: "#52c41a" }} />
+            交易量详情
+          </Space>
+        }
+        open={showVolumeDetail}
+        onCancel={() => setShowVolumeDetail(false)}
+        footer={null}
+        width={500}
+      >
+        <Space direction="vertical" size="large" style={{ width: "100%" }}>
+          <div>
+            <Title level={5} style={{ margin: 0, color: "#52c41a" }}>
+              原始总交易量
+            </Title>
+            <Text
+              style={{ fontSize: "24px", fontWeight: "bold", color: "#52c41a" }}
+            >
+              {formatNumber(summary.totalBuyVolume, 2)} u
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: "12px" }}>
+              不含Alpha代币倍数的原始交易量
+            </Text>
+          </div>
+
+          <div>
+            <Title level={5} style={{ margin: 0, color: "#722ed1" }}>
+              Alpha倍数后总交易量
+            </Title>
+            <Text
+              style={{ fontSize: "24px", fontWeight: "bold", color: "#722ed1" }}
+            >
+              {formatNumber(totalVolumeWithMultiplier, 2)} u
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: "12px" }}>
+              用于BN Alpha分数计算的交易量
+            </Text>
+          </div>
+
+          <div
+            style={{
+              background: "#f9f9f9",
+              padding: "16px",
+              borderRadius: "8px",
+              border: "1px solid #e8e8e8",
+            }}
+          >
+            <Title level={5} style={{ margin: "0 0 12px 0" }}>
+              交易量组成明细
+            </Title>
+            <Space direction="vertical" size="small" style={{ width: "100%" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <Text>Alpha代币交易量 × 2：</Text>
+                <Text strong style={{ color: "#722ed1" }}>
+                  {formatNumber(summary.alphaVolume || 0, 2)} × 2 ={" "}
+                  {formatNumber(alphaVolumeMultiplied, 2)} u
+                </Text>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <Text>普通代币交易量：</Text>
+                <Text strong style={{ color: "#52c41a" }}>
+                  {formatNumber(normalVolume, 2)} u
+                </Text>
+              </div>
+              <div
+                style={{
+                  borderTop: "1px solid #d9d9d9",
+                  paddingTop: "8px",
+                  marginTop: "8px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text strong>总计：</Text>
+                <Text strong style={{ fontSize: "16px", color: "#722ed1" }}>
+                  {formatNumber(totalVolumeWithMultiplier, 2)} u
+                </Text>
+              </div>
+            </Space>
+          </div>
+        </Space>
+      </Modal>
     </Card>
   );
 };
