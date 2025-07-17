@@ -16,12 +16,12 @@ const { Text, Title } = Typography;
 
 interface SummaryCardProps {
   summary: DailySummary;
-  searchedAddress: string;
+  searchedAddresses: string[];
 }
 
 const SummaryCard: React.FC<SummaryCardProps> = ({
   summary,
-  searchedAddress,
+  searchedAddresses,
 }) => {
   const { convertGasFeeToUSDT } = useBNBPrice();
   const [showVolumeDetail, setShowVolumeDetail] = useState(false);
@@ -47,7 +47,12 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
             今日交易汇总
           </div>
           <Tag icon={<LinkOutlined />} color="blue">
-            {`${searchedAddress.slice(0, 6)}...${searchedAddress.slice(-4)}`}
+            {searchedAddresses.length === 1
+              ? `${searchedAddresses[0].slice(
+                  0,
+                  6
+                )}...${searchedAddresses[0].slice(-4)}`
+              : "批量查询"}
           </Tag>
         </div>
       }

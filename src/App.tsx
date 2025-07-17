@@ -257,7 +257,7 @@ function App() {
               <>
                 <SummaryCard
                   summary={dailySummary}
-                  searchedAddress={`批量查询 (${searchedAddresses.length} 个地址)`}
+                  searchedAddresses={searchedAddresses}
                 />
                 <BatchResultTable batchResults={batchResults} />
               </>
