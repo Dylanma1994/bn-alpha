@@ -403,6 +403,32 @@ export const calculateBNAlphaScore = (todayBuyAmountUSD: number): number => {
   return score;
 };
 
+// 计算下一级 Alpha 分数所需的交易量
+export const calculateNextLevelVolume = (
+  currentVolume: number
+): {
+  nextLevelVolume: number;
+  volumeDifference: number;
+  currentScore: number;
+  nextScore: number;
+} => {
+  const currentScore = calculateBNAlphaScore(currentVolume);
+  const nextScore = currentScore + 1;
+
+  // 下一级所需的最小交易量 = 2^(nextScore)
+  const nextLevelVolume = Math.pow(2, nextScore);
+
+  // 与当前交易量的差值
+  const volumeDifference = Math.max(0, nextLevelVolume - currentVolume);
+
+  return {
+    nextLevelVolume,
+    volumeDifference,
+    currentScore,
+    nextScore,
+  };
+};
+
 // 计算净损耗（稳定币流入流出差额）
 const calculateNetStablecoinLoss = async (
   dexTransactions: DexTransactionSummary[]

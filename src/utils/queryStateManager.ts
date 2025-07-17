@@ -2,16 +2,13 @@
 const QUERY_STATE_KEY = "bn_alpha_query_state";
 
 export interface QueryState {
-  type: "single" | "batch";
+  type: "batch";
   addresses: string[];
   timestamp: number;
 }
 
 // 保存查询状态
-export const saveQueryState = (
-  type: "single" | "batch",
-  addresses: string[]
-): void => {
+export const saveQueryState = (type: "batch", addresses: string[]): void => {
   try {
     const queryState: QueryState = {
       type,
@@ -67,12 +64,5 @@ export const getQueryStateSummary = (): string | null => {
   const timeText =
     timeAgo < 60 ? `${timeAgo}分钟前` : `${Math.round(timeAgo / 60)}小时前`;
 
-  if (state.type === "single") {
-    return `上次查询: ${state.addresses[0].slice(
-      0,
-      6
-    )}...${state.addresses[0].slice(-4)} (${timeText})`;
-  } else {
-    return `上次批量查询: ${state.addresses.length} 个地址 (${timeText})`;
-  }
+  return `上次批量查询: ${state.addresses.length} 个地址 (${timeText})`;
 };

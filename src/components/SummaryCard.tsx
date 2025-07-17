@@ -66,7 +66,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
             <Statistic
               title="总交易数"
               value={summary.totalTransactions}
-              prefix={<TransactionOutlined style={{ color: "#1890ff" }} />}
               valueStyle={{ color: "#1890ff" }}
             />
           </Card>
@@ -87,16 +86,20 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
                   总损耗
                 </span>
               }
-              value={formatNumber(
-                summary.slippageLoss + convertGasFeeToUSDT(summary.totalGasFee),
-                2
-              )}
-              suffix={
-                <span style={{ fontSize: "12px" }}>
-                  u ({formatNumber(summary.slippageLoss, 2)} +{" "}
-                  {formatNumber(convertGasFeeToUSDT(summary.totalGasFee), 2)})
-                </span>
+              value={
+                "$" +
+                formatNumber(
+                  summary.slippageLoss +
+                    convertGasFeeToUSDT(summary.totalGasFee),
+                  2
+                )
               }
+              // suffix={
+              //   <span style={{ fontSize: "12px" }}>
+              //     u ({formatNumber(summary.slippageLoss, 2)} +{" "}
+              //     {formatNumber(convertGasFeeToUSDT(summary.totalGasFee), 2)})
+              //   </span>
+              // }
               valueStyle={{ color: "#ff4d4f" }}
             />
           </Card>
@@ -124,9 +127,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
                   />
                 </div>
               }
-              value={formatNumber(summary.totalBuyVolume, 2)}
-              suffix="u"
-              prefix={<DollarOutlined style={{ color: "#52c41a" }} />}
+              value={"$" + formatNumber(summary.totalBuyVolume, 2)}
               valueStyle={{ color: "#52c41a" }}
             />
           </Card>
@@ -143,7 +144,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
             <Statistic
               title="Alpha 分数(含倍数)"
               value={summary.bnAlphaScore}
-              prefix={<TrophyOutlined style={{ color: "#722ed1" }} />}
               valueStyle={{
                 color: "#722ed1",
                 fontSize: "24px",

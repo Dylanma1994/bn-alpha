@@ -17,7 +17,11 @@ import {
   WalletOutlined,
 } from "@ant-design/icons";
 import type { AddressSummary, DexTransactionSummary } from "../types";
-import { formatNumber, formatAddress } from "../utils/dataProcessor";
+import {
+  formatNumber,
+  formatAddress,
+  calculateNextLevelVolume,
+} from "../utils/dataProcessor";
 import { useBNBPrice } from "../hooks/useBNBPrice";
 import { isAlphaToken } from "../utils/alphaTokens";
 
@@ -170,8 +174,8 @@ const BatchResultTable: React.FC<BatchResultTableProps> = ({
                 fontWeight: "bold",
               }}
             >
-              {isInflow ? "+" : ""}
-              {formatNumber(Math.abs(loss), 2)} u
+              {isInflow ? "+" : "-"}
+              {"$" + formatNumber(Math.abs(loss), 2)}
             </Text>
             <Text type="secondary" style={{ fontSize: "11px" }}>
               {record.type === "buy" ? "流出" : "流入"}
@@ -216,9 +220,7 @@ const BatchResultTable: React.FC<BatchResultTableProps> = ({
       key: "transactionCount",
       width: 100,
       render: (record: AddressSummary) => (
-        <Text
-          style={{ fontSize: "14px", fontWeight: "bold", color: "#1890ff" }}
-        >
+        <Text style={{ fontSize: "14px", fontWeight: "500", color: "#1890ff" }}>
           {record.summary.totalTransactions} 笔
         </Text>
       ),
@@ -233,14 +235,14 @@ const BatchResultTable: React.FC<BatchResultTableProps> = ({
         return (
           <Space direction="vertical" size={0} style={{ textAlign: "center" }}>
             <Text
-              style={{ fontSize: "14px", fontWeight: "bold", color: "#ff4d4f" }}
+              style={{ fontSize: "14px", fontWeight: "500", color: "#ff4d4f" }}
             >
-              {formatNumber(totalLoss, 2) + " u"}
+              {"$" + formatNumber(totalLoss, 2)}
             </Text>
-            <Text type="secondary" style={{ fontSize: "10px" }}>
+            {/* <Text type="secondary" style={{ fontSize: "10px" }}>
               ({formatNumber(record.summary.slippageLoss, 2)} +{" "}
               {formatNumber(gasFeeInUSDT, 2)})u
-            </Text>
+            </Text> */}
           </Space>
         );
       },
@@ -250,21 +252,38 @@ const BatchResultTable: React.FC<BatchResultTableProps> = ({
       key: "volume",
       width: 120,
       render: (record: AddressSummary) => (
-        <Text
-          style={{ fontSize: "14px", fontWeight: "bold", color: "#52c41a" }}
-        >
-          {formatNumber(record.summary.totalBuyVolume, 2)} u
+        <Text style={{ fontSize: "14px", fontWeight: "500", color: "#52c41a" }}>
+          {"$" + formatNumber(record.summary.totalBuyVolume, 2)}
         </Text>
       ),
+    },
+    {
+      title: "下一级交易量",
+      key: "nextLevelVolume",
+      width: 160,
+      render: (record: AddressSummary) => {
+        // 使用不含倍数的原始交易量计算下一级
+        const nextLevelInfo = calculateNextLevelVolume(
+          record.summary.totalBuyVolume
+        );
+        return (
+          <Text
+            style={{ fontSize: "14px", fontWeight: "500", color: "#1890ff" }}
+          >
+            {"$" + formatNumber(nextLevelInfo.nextLevelVolume, 2)}{" "}
+            <Text type="secondary" style={{ fontSize: "12px" }}>
+              (还需 {"$" + formatNumber(nextLevelInfo.volumeDifference, 2)})
+            </Text>
+          </Text>
+        );
+      },
     },
     {
       title: "Alpha分数",
       key: "alphaScore",
       width: 100,
       render: (record: AddressSummary) => (
-        <Text
-          style={{ fontSize: "16px", fontWeight: "bold", color: "#722ed1" }}
-        >
+        <Text style={{ fontSize: "14px", fontWeight: "500", color: "#722ed1" }}>
           {record.summary.bnAlphaScore} 分
         </Text>
       ),
@@ -329,7 +348,7 @@ const BatchResultTable: React.FC<BatchResultTableProps> = ({
             />
           ),
         }}
-        scroll={{ x: 800 }}
+        scroll={{ x: 960 }}
         size="middle"
       />
     </Card>

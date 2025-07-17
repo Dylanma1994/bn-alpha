@@ -7,24 +7,16 @@ import {
 } from "@ant-design/icons";
 import AddressInput from "./components/AddressInput";
 import SummaryCard from "./components/SummaryCard";
-import DexTransactionTable from "./components/DexTransactionTable";
 import BatchResultTable from "./components/BatchResultTable";
 import PriceIndicator from "./components/PriceIndicator";
 import ApiKeySettings from "./components/ApiKeySettings";
 import AlphaTokenSettings from "./components/AlphaTokenSettings";
 import { getAllTransactions, DEFAULT_CHAIN_ID } from "./services/api";
 import {
-  calculateDailySummary,
-  groupTransactionsByHash,
-  calculateAndUpdateSlippage,
   processBatchAddresses,
   calculateBatchSummary,
 } from "./utils/dataProcessor";
-import type {
-  DailySummary,
-  DexTransactionSummary,
-  AddressSummary,
-} from "./types";
+import type { DailySummary, AddressSummary } from "./types";
 import { saveQueryState } from "./utils/queryStateManager";
 
 const { Content } = Layout;
@@ -32,15 +24,10 @@ const { Title, Paragraph } = Typography;
 
 function App() {
   const [loading, setLoading] = useState(false);
-  const [dexTransactions, setDexTransactions] = useState<
-    DexTransactionSummary[]
-  >([]);
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
-  const [searchedAddress, setSearchedAddress] = useState<string>("");
   const [loadingProgress, setLoadingProgress] = useState<string>("");
 
   // 批量查询相关状态
-  const [isBatchMode, setIsBatchMode] = useState(false);
   const [batchResults, setBatchResults] = useState<AddressSummary[]>([]);
   const [searchedAddresses, setSearchedAddresses] = useState<string[]>([]);
 
@@ -50,105 +37,12 @@ function App() {
   // Alpha代币设置状态
   const [showAlphaTokenSettings, setShowAlphaTokenSettings] = useState(false);
 
-  const handleSearch = async (address: string) => {
-    setLoading(true);
-    setSearchedAddress(address);
-
-    // 重置批量模式状态
-    setIsBatchMode(false);
-    setBatchResults([]);
-    setSearchedAddresses([]);
-
-    // 保存查询状态
-    saveQueryState("single", [address]);
-
-    const chainName = "BNB Smart Chain";
-    setLoadingProgress(`正在连接 ${chainName}...`);
-
-    try {
-      // 监听控制台日志来更新进度
-      const originalLog = console.log;
-      console.log = (...args) => {
-        const message = args.join(" ");
-        if (message.includes("正在获取地址")) {
-          setLoadingProgress(`正在连接 Etherscan API... (${chainName})`);
-        } else if (message.includes("正在获取普通交易")) {
-          setLoadingProgress("正在获取普通交易数据...");
-        } else if (message.includes("正在获取代币交易")) {
-          setLoadingProgress("正在获取代币交易数据...");
-        } else if (message.includes("正在并行获取")) {
-          setLoadingProgress("正在并行获取交易数据...");
-        } else if (
-          message.includes("获取到") &&
-          message.includes("笔普通交易")
-        ) {
-          setLoadingProgress("正在处理普通交易...");
-        } else if (
-          message.includes("获取到") &&
-          message.includes("笔代币交易")
-        ) {
-          setLoadingProgress("正在处理代币交易...");
-        } else if (message.includes("过滤后得到")) {
-          setLoadingProgress("正在过滤今日交易...");
-        }
-        originalLog(...args);
-      };
-
-      // 获取交易数据
-      const txs = await getAllTransactions(address, DEFAULT_CHAIN_ID);
-
-      // 恢复原始的 console.log
-      console.log = originalLog;
-
-      if (txs.length > 0) {
-        let dexTxs = groupTransactionsByHash(txs, address);
-
-        // 计算并更新每笔交易的滑点损耗
-        dexTxs = await calculateAndUpdateSlippage(dexTxs);
-
-        const summary = await calculateDailySummary(txs, address, 0);
-
-        setDexTransactions(dexTxs);
-        setDailySummary(summary);
-        message.success(
-          `成功获取 ${dexTxs.length} 笔 DEX 交易记录，BN Alpha 分数: ${summary.bnAlphaScore}`
-        );
-      } else {
-        setDexTransactions([]);
-        setDailySummary({
-          totalTransactions: 0,
-          totalGasFee: 0,
-          totalValue: 0,
-          uniqueTokens: 0,
-          bnAlphaScore: 0,
-          walletBalance: 0,
-          todayBuyAmount: 0,
-          slippageLoss: 0,
-          totalBuyVolume: 0,
-          totalBuyVolumeWithMultiplier: 0,
-          alphaVolume: 0,
-          normalVolume: 0,
-        });
-        message.info(`该地址在 ${chainName} 今日暂无交易记录`);
-      }
-    } catch (err) {
-      message.error("查询失败，请稍后重试");
-      console.error("Error fetching transactions:", err);
-    } finally {
-      setLoading(false);
-      setLoadingProgress("");
-    }
-  };
-
   // 批量查询处理函数
   const handleBatchSearch = async (addresses: string[]) => {
     setLoading(true);
-    setIsBatchMode(true);
     setSearchedAddresses(addresses);
     setBatchResults([]);
-    setDexTransactions([]);
     setDailySummary(null);
-    setSearchedAddress("");
 
     // 保存查询状态
     saveQueryState("batch", addresses);
@@ -219,16 +113,17 @@ function App() {
               style={{
                 fontSize: "12px",
                 fontWeight: "500",
-                padding: "0 16px",
-                height: "32px",
+                padding: "0 12px",
+                height: "36px",
                 backgroundColor: "#1DA1F2",
                 borderColor: "#1DA1F2",
-                borderRadius: "16px",
+                borderRadius: "18px",
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
+                gap: "6px",
                 boxShadow: "0 2px 8px rgba(29, 161, 242, 0.3)",
                 transition: "all 0.3s ease",
+                minWidth: "160px",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = "#1991DB";
@@ -243,14 +138,16 @@ function App() {
                   "0 2px 8px rgba(29, 161, 242, 0.3)";
               }}
             >
-              <span
+              <img
+                src="https://pbs.twimg.com/profile_images/1899804258758983680/4AkH3cnV_400x400.jpg"
+                alt="Profile"
                 style={{
-                  fontSize: "16px",
-                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))",
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
                 }}
-              >
-                🐦
-              </span>
+              />
               <span
                 style={{
                   background: "linear-gradient(45deg, #ffffff, #f0f8ff)",
@@ -261,6 +158,11 @@ function App() {
                 }}
               >
                 关注推特
+              </span>
+              <span
+                style={{ fontSize: "11px", opacity: 0.8, color: "#ffffff" }}
+              >
+                @0x_xiguajun
               </span>
             </Button>
           </div>
@@ -330,11 +232,7 @@ function App() {
           </div>
 
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
-            <AddressInput
-              onSearch={handleSearch}
-              onBatchSearch={handleBatchSearch}
-              loading={loading}
-            />
+            <AddressInput onBatchSearch={handleBatchSearch} loading={loading} />
 
             {loading && (
               <div style={{ textAlign: "center", padding: "40px" }}>
@@ -359,17 +257,9 @@ function App() {
               <>
                 <SummaryCard
                   summary={dailySummary}
-                  searchedAddress={
-                    isBatchMode
-                      ? `批量查询 (${searchedAddresses.length} 个地址)`
-                      : searchedAddress
-                  }
+                  searchedAddress={`批量查询 (${searchedAddresses.length} 个地址)`}
                 />
-                {isBatchMode ? (
-                  <BatchResultTable batchResults={batchResults} />
-                ) : (
-                  <DexTransactionTable dexTransactions={dexTransactions} />
-                )}
+                <BatchResultTable batchResults={batchResults} />
               </>
             )}
           </Space>
