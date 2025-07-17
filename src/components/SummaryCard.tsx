@@ -3,7 +3,6 @@ import { Card, Row, Col, Statistic, Tag, Modal, Space, Typography } from "antd";
 import {
   TransactionOutlined,
   DollarOutlined,
-  TrophyOutlined,
   LinkOutlined,
   FallOutlined,
   InfoCircleOutlined,
