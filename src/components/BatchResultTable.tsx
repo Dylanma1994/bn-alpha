@@ -216,6 +216,16 @@ const BatchResultTable: React.FC<BatchResultTableProps> = ({
       ),
     },
     {
+      title: "备注",
+      key: "label",
+      width: 120,
+      render: (record: AddressSummary) => (
+        <Text style={{ fontSize: "14px", fontWeight: "500" }}>
+          {record.label || "-"}
+        </Text>
+      ),
+    },
+    {
       title: "交易数量",
       key: "transactionCount",
       width: 100,
@@ -348,7 +358,7 @@ const BatchResultTable: React.FC<BatchResultTableProps> = ({
             />
           ),
         }}
-        scroll={{ x: 960 }}
+        scroll={{ x: 1080 }}
         size="middle"
       />
     </Card>

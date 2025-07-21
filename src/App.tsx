@@ -38,21 +38,28 @@ function App() {
   const [showAlphaTokenSettings, setShowAlphaTokenSettings] = useState(false);
 
   // 批量查询处理函数
-  const handleBatchSearch = async (addresses: string[]) => {
+  const handleBatchSearch = async (
+    addressItems: Array<{ address: string; label?: string }>
+  ) => {
     setLoading(true);
+    // 提取纯地址数组用于显示
+    const addresses = addressItems.map((item) => item.address);
     setSearchedAddresses(addresses);
     setBatchResults([]);
     setDailySummary(null);
 
     // 保存查询状态
-    saveQueryState("batch", addresses);
+    saveQueryState("batch", addresses, addressItems);
 
     setLoadingProgress(`正在批量查询 ${addresses.length} 个地址...`);
 
     try {
       // 使用批量处理函数，带进度回调
       const results = await processBatchAddresses(
-        addresses,
+        addressItems.map((item) => ({
+          address: item.address,
+          label: item.label,
+        })),
         getAllTransactions,
         DEFAULT_CHAIN_ID,
         (current, total, address) => {

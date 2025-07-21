@@ -5,7 +5,9 @@ import { addAddressToCache } from "../utils/addressCache";
 import { getLastQueryState } from "../utils/queryStateManager";
 
 interface AddressInputProps {
-  onBatchSearch: (addresses: string[]) => void;
+  onBatchSearch: (
+    addresses: Array<{ address: string; label?: string }>
+  ) => void;
   loading: boolean;
 }
 
@@ -21,7 +23,19 @@ const AddressInput: React.FC<AddressInputProps> = ({
     const lastState = getLastQueryState();
     if (lastState && lastState.addresses.length > 0) {
       // 只恢复批量模式
-      setAddresses(lastState.addresses.join("\n"));
+      if (
+        lastState.addressesWithLabels &&
+        lastState.addressesWithLabels.length > 0
+      ) {
+        // 恢复带标签的地址
+        const formattedAddresses = lastState.addressesWithLabels.map((item) =>
+          item.label ? `${item.address},${item.label}` : item.address
+        );
+        setAddresses(formattedAddresses.join("\n"));
+      } else {
+        // 兼容旧版本，只有地址没有标签
+        setAddresses(lastState.addresses.join("\n"));
+      }
       console.log(
         `已恢复上次查询状态: ${lastState.type} - ${lastState.addresses.length} 个地址`
       );
@@ -32,26 +46,37 @@ const AddressInput: React.FC<AddressInputProps> = ({
     return /^0x[a-fA-F0-9]{40}$/.test(addr);
   };
 
-  // 解析多行地址输入
-  const parseAddresses = (input: string): string[] => {
+  // 解析多行地址输入，支持备注格式：地址,备注
+  const parseAddresses = (
+    input: string
+  ): Array<{ address: string; label?: string }> => {
     return input
       .split("\n")
-      .map((addr) => addr.trim())
-      .filter((addr) => addr.length > 0);
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        const parts = line.split(",");
+        const address = parts[0].trim();
+        const label = parts.length > 1 ? parts[1].trim() : undefined;
+        return { address, label };
+      });
   };
 
   // 验证多个地址
   const validateAddresses = (
-    addrs: string[]
-  ): { valid: string[]; invalid: string[] } => {
-    const valid: string[] = [];
-    const invalid: string[] = [];
+    addrs: Array<{ address: string; label?: string }>
+  ): {
+    valid: Array<{ address: string; label?: string }>;
+    invalid: Array<{ address: string; label?: string }>;
+  } => {
+    const valid: Array<{ address: string; label?: string }> = [];
+    const invalid: Array<{ address: string; label?: string }> = [];
 
-    addrs.forEach((addr) => {
-      if (isValidAddress(addr)) {
-        valid.push(addr);
+    addrs.forEach((item) => {
+      if (isValidAddress(item.address)) {
+        valid.push(item);
       } else {
-        invalid.push(addr);
+        invalid.push(item);
       }
     });
 
@@ -74,7 +99,7 @@ const AddressInput: React.FC<AddressInputProps> = ({
     }
 
     // 添加所有有效地址到缓存
-    valid.forEach((addr) => addAddressToCache(addr));
+    valid.forEach((item) => addAddressToCache(item.address, item.label));
 
     // 执行批量搜索
     onBatchSearch(valid);
@@ -90,7 +115,7 @@ const AddressInput: React.FC<AddressInputProps> = ({
         <Form.Item label="请输入多个钱包地址">
           <Input.TextArea
             rows={6}
-            placeholder={`0x1234567890123456789012345678901234567890\n0xabcdefabcdefabcdefabcdefabcdefabcdefabcd\n...`}
+            placeholder={`0x1234567890123456789012345678901234567890,钱包1\n0xabcdefabcdefabcdefabcdefabcdefabcdefabcd,钱包2\n0x9876543210987654321098765432109876543210\n...`}
             value={addresses}
             onChange={handleAddressesChange}
             disabled={loading}
@@ -109,7 +134,7 @@ const AddressInput: React.FC<AddressInputProps> = ({
               {loading ? "查询中" : "批量查询"}
             </Button>
             <span style={{ fontSize: "12px", color: "#666" }}>
-              每行输入一个地址
+              每行输入一个地址，可选备注格式：地址,备注
             </span>
           </div>
         </Form.Item>

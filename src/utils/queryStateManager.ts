@@ -1,18 +1,30 @@
 // 查询状态管理器
 const QUERY_STATE_KEY = "bn_alpha_query_state";
 
+export interface AddressWithLabel {
+  address: string;
+  label?: string;
+}
+
 export interface QueryState {
   type: "batch";
   addresses: string[];
+  addressesWithLabels: AddressWithLabel[];
   timestamp: number;
 }
 
 // 保存查询状态
-export const saveQueryState = (type: "batch", addresses: string[]): void => {
+export const saveQueryState = (
+  type: "batch",
+  addresses: string[],
+  addressesWithLabels?: AddressWithLabel[]
+): void => {
   try {
     const queryState: QueryState = {
       type,
       addresses,
+      addressesWithLabels:
+        addressesWithLabels || addresses.map((addr) => ({ address: addr })),
       timestamp: Date.now(),
     };
 

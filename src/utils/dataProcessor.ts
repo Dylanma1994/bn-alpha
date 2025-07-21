@@ -648,7 +648,7 @@ const queryAddressWithRetry = async (
 
 // 批量处理多个地址的数据（顺序查询，带重试机制）
 export const processBatchAddresses = async (
-  addresses: string[],
+  addressItems: Array<{ address: string; label?: string }>,
   getAllTransactions: (
     address: string,
     chainId: number
@@ -657,12 +657,13 @@ export const processBatchAddresses = async (
   onProgress?: (current: number, total: number, address: string) => void
 ): Promise<AddressSummary[]> => {
   const results: AddressSummary[] = [];
-  const total = addresses.length;
+  const total = addressItems.length;
 
   console.log(`🚀 开始批量查询 ${total} 个地址`);
 
-  for (let i = 0; i < addresses.length; i++) {
-    const address = addresses[i];
+  for (let i = 0; i < addressItems.length; i++) {
+    const addressItem = addressItems[i];
+    const address = addressItem.address;
 
     // 更新进度
     if (onProgress) {
@@ -675,10 +676,13 @@ export const processBatchAddresses = async (
       getAllTransactions,
       chainId
     );
+
+    // 添加标签信息到结果中
+    result.label = addressItem.label;
     results.push(result);
 
     // 在查询之间添加延迟，避免API限流
-    if (i < addresses.length - 1) {
+    if (i < addressItems.length - 1) {
       await delay(200); // 200ms延迟，确保不超过5qps
     }
   }
